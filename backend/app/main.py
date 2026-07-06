@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import health, issues, repositories
 from app.core.config import settings
+from app.webhooks.router import router as webhooks_router
 
 
 def create_app() -> FastAPI:
@@ -23,6 +24,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router, prefix="/api")
     app.include_router(repositories.router, prefix="/api")
     app.include_router(issues.router, prefix="/api")
+    app.include_router(webhooks_router, prefix="/api")
     return app
 
 
