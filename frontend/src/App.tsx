@@ -24,6 +24,7 @@ function App() {
   const [snapshot, setSnapshot] = useState<RepositorySnapshot | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showSettings, setShowSettings] = useState(false)
 
   // -- Sync form handler --------------------------------------------------
 
@@ -89,6 +90,28 @@ function App() {
             同步仓库
           </button>
         </form>
+
+        <button className="ghost-button settings-toggle" onClick={() => setShowSettings(!showSettings)}>
+          <Settings2 size={16} aria-hidden="true" />
+          配置
+        </button>
+
+        {showSettings && (
+          <section className="settings-panel">
+            <h3>Webhook 配置</h3>
+            <label>
+              Webhook URL
+              <input value="http://85.211.226.195:8000/api/webhooks/github" readOnly disabled />
+            </label>
+            <label>
+              GitHub Webhook Secret
+              <input value="issuescope_webhook_secret_2024" readOnly disabled />
+            </label>
+            <p className="settings-hint">
+              在 GitHub 仓库 Settings → Webhooks 中填入以上 URL 和 Secret 以启用自动监听。
+            </p>
+          </section>
+        )}
 
         {error && (
           <div className="notice error">
