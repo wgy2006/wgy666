@@ -142,3 +142,71 @@ class GitHubClient:
             raise GitHubClientError(message=message, status_code=status_code)
 
         return response.json()
+
+    async def _post(self, path: str, json_data: dict[str, Any] | None = None) -> Any:
+        """Perform a POST request and raise ``GitHubClientError`` on failure."""
+        try:
+            response = await self._client.post(path, json=json_data)
+        except httpx.HTTPError as exc:
+            detail = str(exc) or exc.__class__.__name__
+            raise GitHubClientError(f"GitHub POST request failed: {detail}") from exc
+
+        if response.status_code >= 400:
+            message = "GitHub API POST request failed."
+            try:
+                message = response.json().get("message", message)
+            except ValueError:
+                pass
+            status_code = response.status_code if response.status_code in {400, 401, 403, 404} else 502
+            raise GitHubClientError(message=message, status_code=status_code)
+
+        return response.json()
+
+    async def _patch(self, path: str, json_data: dict[str, Any] | None = None) -> Any:
+        """Perform a PATCH request and raise ``GitHubClientError`` on failure."""
+        try:
+            response = await self._client.patch(path, json=json_data)
+        except httpx.HTTPError as exc:
+            detail = str(exc) or exc.__class__.__name__
+            raise GitHubClientError(f"GitHub PATCH request failed: {detail}") from exc
+
+        if response.status_code >= 400:
+            message = "GitHub API PATCH request failed."
+            try:
+                message = response.json().get("message", message)
+            except ValueError:
+                pass
+            status_code = response.status_code if response.status_code in {400, 401, 403, 404} else 502
+            raise GitHubClientError(message=message, status_code=status_code)
+
+        return response.json()
+
+    # -- Write operations (TODO: complete when auto-reply/fix module is ready) --
+
+    # TODO: Reply to an issue with a comment body.
+    # async def comment_on_issue(self, ref: RepositoryRef, issue_number: int, body: str) -> dict[str, Any]:
+    #     return await self._post(
+    #         f"/repos/{ref.owner}/{ref.name}/issues/{issue_number}/comments",
+    #         json_data={"body": body},
+    #     )
+
+    # TODO: Update issue state (close, reopen) or add labels.
+    # async def update_issue(self, ref: RepositoryRef, issue_number: int, state: str) -> dict[str, Any]:
+    #     return await self._patch(
+    #         f"/repos/{ref.owner}/{ref.name}/issues/{issue_number}",
+    #         json_data={"state": state},
+    #     )
+
+    # TODO: Create a pull request from a fix branch.
+    # async def create_pull_request(self, ref: RepositoryRef, title: str, head: str, base: str, body: str) -> dict[str, Any]:
+    #     return await self._post(
+    #         f"/repos/{ref.owner}/{ref.name}/pulls",
+    #         json_data={"title": title, "head": head, "base": base, "body": body},
+    #     )
+
+    # TODO: Create a new branch from a given SHA.
+    # async def create_branch(self, ref: RepositoryRef, branch_name: str, sha: str) -> dict[str, Any]:
+    #     return await self._post(
+    #         f"/repos/{ref.owner}/{ref.name}/git/refs",
+    #         json_data={"ref": f"refs/heads/{branch_name}", "sha": sha},
+    #     )
