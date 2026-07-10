@@ -43,47 +43,62 @@ class AgentHarness:
         )
 
         messages = self._build_initial_messages(request, snapshot.identity.full_name, used_cached_data)
-        try:
-            first = await self.client.chat.completions.create(
-                model=settings.llm_model,
-                messages=messages,
-                tools=self.registry.openai_tools(),
-                tool_choice="auto",
-            )
-        except BadRequestError as exc:
-            raise AgentHarnessError(f"LLM tool-calling request was rejected: {exc.message}") from exc
-        except (APIError, OpenAIError) as exc:
-            raise AgentHarnessError(f"LLM request failed: {exc}") from exc
-
-        assistant_message = first.choices[0].message
         tool_results: list[ToolResult] = []
-        tool_calls = assistant_message.tool_calls or []
+        max_rounds = max(1, settings.assistant_max_tool_rounds)
 
-        if not tool_calls:
-            return AssistantChatResponse(
-                answer=assistant_message.content or "模型没有返回可用回答。",
-                repository=snapshot.identity.full_name,
-                used_cached_data=used_cached_data,
-                tool_calls=[],
-                citations=[],
-            )
+        for round_index in range(max_rounds):
+            try:
+                completion = await self.client.chat.completions.create(
+                    model=settings.llm_model,
+                    messages=messages,
+                    tools=self.registry.openai_tools(),
+                    tool_choice="auto",
+                )
+            except BadRequestError as exc:
+                raise AgentHarnessError(f"LLM tool-calling request was rejected: {exc.message}") from exc
+            except (APIError, OpenAIError) as exc:
+                raise AgentHarnessError(f"LLM request failed: {exc}") from exc
 
-        messages.append(assistant_message.model_dump(exclude_none=True))
+            assistant_message = completion.choices[0].message
+            tool_calls = assistant_message.tool_calls or []
 
-        for tool_call in tool_calls:
-            result = self.registry.execute(
-                tool_call.function.name,
-                tool_call.function.arguments,
-                snapshot,
-            )
-            tool_results.append(result)
-            messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": self._tool_result_content(result),
-                }
-            )
+            if not tool_calls:
+                return AssistantChatResponse(
+                    answer=assistant_message.content or "模型没有返回可用回答。",
+                    repository=snapshot.identity.full_name,
+                    used_cached_data=used_cached_data,
+                    tool_calls=[result.call for result in tool_results],
+                    citations=merge_citations(tool_results),
+                )
+
+            messages.append(assistant_message.model_dump(exclude_none=True))
+
+            for tool_call in tool_calls:
+                result = self.registry.execute(
+                    tool_call.function.name,
+                    tool_call.function.arguments,
+                    snapshot,
+                )
+                tool_results.append(result)
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "content": self._tool_result_content(result),
+                    }
+                )
+
+            if round_index == max_rounds - 1:
+                messages.append(
+                    {
+                        "role": "system",
+                        "content": (
+                            "The maximum number of tool rounds has been reached. "
+                            "Give the best possible final answer using only the tool results already available. "
+                            "If the evidence is insufficient, say what is missing."
+                        ),
+                    }
+                )
 
         try:
             final = await self.client.chat.completions.create(
@@ -101,7 +116,6 @@ class AgentHarness:
             tool_calls=[result.call for result in tool_results],
             citations=merge_citations(tool_results),
         )
-
     def _build_initial_messages(
         self,
         request: AssistantChatRequest,
