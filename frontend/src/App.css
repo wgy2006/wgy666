@@ -568,6 +568,11 @@ button,
   align-items: stretch;
 }
 
+.analysis-layout > *,
+.analysis-grid > * {
+  min-width: 0;
+}
+
 .analysis-summary {
   border: 1px solid #e5ebf0;
   border-radius: 8px;
@@ -597,6 +602,30 @@ button,
   color: #4b5563;
   line-height: 1.7;
   margin: 12px 0 0;
+}
+
+.analysis-summary .analysis-basis {
+  color: #6a747e;
+  font-size: 12px;
+}
+
+.analysis-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 14px;
+  border: 1px solid #f2c36b;
+  border-radius: 8px;
+  background: #fff9e8;
+  color: #795500;
+  font-size: 12px;
+  line-height: 1.55;
+  padding: 10px 12px;
+}
+
+.analysis-warning svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
 }
 
 .analysis-chips {
@@ -835,6 +864,27 @@ button,
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 1400px) {
+  .analysis-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .analysis-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .analysis-grid,
+  .mindmap {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mindmap-center {
+    grid-row: auto;
   }
 }
 

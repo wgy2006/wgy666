@@ -361,6 +361,8 @@ type ProjectDirectory = {
 
 type ProjectAnalysis = {
   projectType: string
+  analyzedFileCount: number
+  analysisWarning: string | null
   sourceCount: number
   dependencyFiles: ClassifiedFile[]
   testFiles: ClassifiedFile[]
@@ -373,27 +375,36 @@ type ProjectAnalysis = {
 
 function ProjectAnalysisPanel({ analysis, repositoryName }: { analysis: ProjectAnalysis; repositoryName: string }) {
   return (
-    <Panel title="项目解析原型">
+    <Panel title="项目结构概览">
       <div className="analysis-layout">
         <div className="analysis-summary">
-          <p className="analysis-kicker">规则解析 · 非 AI</p>
+          <p className="analysis-kicker">启发式规则解析 · 非 AI 原型</p>
           <h4>{analysis.projectType}</h4>
-          <p>
+          <p className="analysis-description">
             基于 GitHub 同步到的目录树、文件类型、依赖文件和 README 信息生成项目结构视图，
             用于界面原型阶段说明“系统如何帮助开发者理解仓库”。
           </p>
+          <p className="analysis-basis">
+            当前基于 {analysis.analyzedFileCount} 个已同步文件样本，统计结果仅代表本次同步范围。
+          </p>
+          {analysis.analysisWarning && (
+            <div className="analysis-warning" role="status">
+              <AlertCircle size={17} aria-hidden="true" />
+              <span>{analysis.analysisWarning}</span>
+            </div>
+          )}
           <div className="analysis-chips">
             <span>{analysis.sourceCount} 个源码文件</span>
-            <span>{analysis.dependencyFiles.length} 个依赖文件</span>
+            <span>{analysis.dependencyFiles.length} 个依赖配置文件</span>
             <span>{analysis.testFiles.length} 个测试文件</span>
             <span>{analysis.docFiles.length} 个文档文件</span>
           </div>
         </div>
 
-        <div className="mindmap" aria-label="项目架构思维导图">
+        <div className="mindmap" aria-label="项目结构概览图">
           <div className="mindmap-center">
             <strong>{repositoryName}</strong>
-            <span>项目结构</span>
+            <span>结构概览</span>
           </div>
           <MindmapNode label="源码模块" value={analysis.sourceCount} icon={<FileCode2 size={16} />} />
           <MindmapNode label="依赖配置" value={analysis.dependencyFiles.length + analysis.configFiles.length} icon={<Package size={16} />} />
@@ -407,7 +418,7 @@ function ProjectAnalysisPanel({ analysis, repositoryName }: { analysis: ProjectA
         <AnalysisCard
           icon={<Boxes size={18} />}
           title="主要目录"
-          items={analysis.topDirectories.map((item) => `${item.name} · ${item.count} 个文件 · ${formatCategory(item.mainCategory)}`)}
+          items={analysis.topDirectories.map((item) => `${item.name} · ${item.count} 个文件 · ${formatProjectCategory(item.mainCategory)}`)}
         />
         <AnalysisCard
           icon={<Package size={18} />}
@@ -709,6 +720,22 @@ function formatCategory(category: string) {
   return category.replaceAll('_', ' ')
 }
 
+function formatProjectCategory(category: string) {
+  const labels: Record<string, string> = {
+    source_code: '源码',
+    tests: '测试',
+    documentation: '文档',
+    configuration: '配置',
+    ci_cd: 'CI/CD',
+    dependency: '依赖配置',
+    build: '构建',
+    assets: '静态资源',
+    data: '数据',
+    other: '其他',
+  }
+  return labels[category] ?? category.replaceAll('_', ' ')
+}
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('zh-CN', {
     dateStyle: 'medium',
@@ -753,11 +780,18 @@ function analyzeProject(snapshot: RepositorySnapshot): ProjectAnalysis {
   const docFiles = files.filter((file) => file.category === 'documentation')
   const configFiles = files.filter((file) => file.category === 'configuration')
   const ciFiles = files.filter((file) => file.category === 'ci_cd')
-  const entryFiles = files.filter((file) => isEntryCandidate(file.path))
+  const sourceCount = categoryMap.get('source_code') ?? 0
+  const entryFiles = files.filter((file) => file.category === 'source_code' && isEntryCandidate(file.path))
+  const primaryLanguage = getPrimaryLanguage(snapshot)
+  const analysisWarning = sourceCount === 0 && primaryLanguage
+    ? `GitHub 语言统计显示主要语言为 ${primaryLanguage}，但当前文件样本未覆盖源码目录，建议扩大同步范围后再确认。`
+    : null
 
   return {
     projectType: inferProjectType(snapshot),
-    sourceCount: categoryMap.get('source_code') ?? 0,
+    analyzedFileCount: files.length,
+    analysisWarning,
+    sourceCount,
     dependencyFiles,
     testFiles,
     docFiles,
@@ -768,21 +802,40 @@ function analyzeProject(snapshot: RepositorySnapshot): ProjectAnalysis {
   }
 }
 
+const WEB_LANGUAGES = new Set(['typescript', 'javascript', 'tsx', 'vue', 'css', 'html'])
+const SIGNIFICANT_LANGUAGE_SHARE = 0.1
+
 function inferProjectType(snapshot: RepositorySnapshot) {
-  const languages = Object.keys(snapshot.stats.languages).map((language) => language.toLowerCase())
-  const hasPython = languages.includes('python')
-  const hasFrontend = languages.some((language) => ['typescript', 'javascript', 'tsx', 'vue', 'css', 'html'].includes(language))
+  const languageEntries = Object.entries(snapshot.stats.languages)
+  const totalBytes = languageEntries.reduce((total, [, bytes]) => total + Math.max(bytes, 0), 0)
+  const languageShare = (names: Set<string>) => totalBytes === 0
+    ? 0
+    : languageEntries.reduce(
+        (total, [language, bytes]) => total + (names.has(language.toLowerCase()) ? Math.max(bytes, 0) : 0),
+        0,
+      ) / totalBytes
+  const primaryLanguage = snapshot.stats.primary_language?.toLowerCase()
+  const hasPython = primaryLanguage === 'python' || languageShare(new Set(['python'])) >= SIGNIFICANT_LANGUAGE_SHARE
+  const hasFrontend = languageShare(WEB_LANGUAGES) >= SIGNIFICANT_LANGUAGE_SHARE
 
   if (hasPython && hasFrontend) return '全栈项目：Python 后端 + Web 前端'
   if (hasPython) return 'Python 后端或工具库项目'
   if (hasFrontend) return 'Web 前端或 Node.js 项目'
-  if (languages.length > 0) return `${Object.keys(snapshot.stats.languages)[0]} 为主的项目`
+  if (languageEntries.length > 0) return `${getPrimaryLanguage(snapshot)} 为主的项目`
   return '暂未识别主要技术栈'
+}
+
+function getPrimaryLanguage(snapshot: RepositorySnapshot) {
+  if (snapshot.stats.primary_language) return snapshot.stats.primary_language
+  return Object.entries(snapshot.stats.languages).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
 }
 
 function isEntryCandidate(path: string) {
   const normalized = path.toLowerCase()
-  const fileName = normalized.split('/').at(-1)
+  const segments = normalized.split('/')
+  const fileName = segments.at(-1)
+  const excludedDirectories = new Set(['doc', 'docs', 'test', 'tests', 'example', 'examples', 'fixture', 'fixtures', 'sample', 'samples', '.github'])
+  if (segments.slice(0, -1).some((segment) => excludedDirectories.has(segment))) return false
   return Boolean(
     fileName &&
     [

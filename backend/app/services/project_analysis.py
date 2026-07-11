@@ -18,6 +18,21 @@ ENTRY_FILE_NAMES = {
     "app.tsx",
     "program.cs",
 }
+EXCLUDED_ENTRY_DIRECTORIES = {
+    ".github",
+    "doc",
+    "docs",
+    "example",
+    "examples",
+    "fixture",
+    "fixtures",
+    "sample",
+    "samples",
+    "test",
+    "tests",
+}
+WEB_LANGUAGES = {"typescript", "javascript", "tsx", "vue", "css", "html"}
+SIGNIFICANT_LANGUAGE_SHARE = 0.1
 
 
 class ProjectAnalysisService:
@@ -49,15 +64,32 @@ class ProjectAnalysisService:
             test_files=self._by_category(files, "tests"),
             doc_files=self._by_category(files, "documentation"),
             config_files=self._by_category(files, "configuration"),
-            entry_files=[file for file in files if self._is_entry_candidate(file.path)],
+            entry_files=[
+                file
+                for file in files
+                if file.category.value == "source_code" and self._is_entry_candidate(file.path)
+            ],
             ci_files=self._by_category(files, "ci_cd"),
             top_directories=top_directories[:8],
         )
 
     def _infer_project_type(self, snapshot: RepositorySnapshot) -> str:
-        languages = {language.lower() for language in snapshot.stats.languages}
-        has_python = "python" in languages
-        has_frontend = bool(languages & {"typescript", "javascript", "tsx", "vue", "css", "html"})
+        languages = snapshot.stats.languages
+        total_bytes = sum(max(byte_count, 0) for byte_count in languages.values())
+        primary_language = (snapshot.stats.primary_language or "").lower()
+
+        def language_share(names: set[str]) -> float:
+            if total_bytes == 0:
+                return 0
+            matching_bytes = sum(
+                max(byte_count, 0)
+                for language, byte_count in languages.items()
+                if language.lower() in names
+            )
+            return matching_bytes / total_bytes
+
+        has_python = primary_language == "python" or language_share({"python"}) >= SIGNIFICANT_LANGUAGE_SHARE
+        has_frontend = language_share(WEB_LANGUAGES) >= SIGNIFICANT_LANGUAGE_SHARE
 
         if has_python and has_frontend:
             return "Full-stack project: Python backend plus web frontend"
@@ -73,4 +105,7 @@ class ProjectAnalysisService:
         return [file for file in files if file.category.value == category]
 
     def _is_entry_candidate(self, path: str) -> bool:
-        return path.lower().split("/")[-1] in ENTRY_FILE_NAMES
+        segments = path.lower().split("/")
+        if any(segment in EXCLUDED_ENTRY_DIRECTORIES for segment in segments[:-1]):
+            return False
+        return segments[-1] in ENTRY_FILE_NAMES
