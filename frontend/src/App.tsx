@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import './App.css'
 
-import { askAssistant, fetchFileContent as fetchFileContentApi, fetchWebhookEvents, syncRepository } from './api'
+import { askAssistant, fetchFileContent as fetchFileContentApi, fetchWebhookConfig, fetchWebhookEvents, syncRepository } from './api'
 import type { AssistantChatMessage, AssistantChatResponse, CategorySummary, ClassifiedFile, RepositoryFileContent, RepositorySnapshot, WebhookEventItem } from './api'
 /**
  * App — Single-page sync-and-dashboard application.
