@@ -1,0 +1,170 @@
+@startuml
+skinparam packageStyle rectangle
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontSize 11
+title IssueScope 系统 - 概念类图
+
+package "仓库管理 (Repository)" {
+  class "仓库标识\nRepositoryIdentity" as RI {
+    + owner : String
+    + name : String
+    + fullName : String
+    + htmlUrl : URL
+    + defaultBranch : String
+  }
+  class "仓库统计\nRepositoryStats" as RS {
+    + stars : Integer
+    + forks : Integer
+    + watchers : Integer
+    + openIssues : Integer
+    + sizeKB : Integer
+    + primaryLanguage : String
+    + languages : Map
+  }
+  class "仓库快照\nRepositorySnapshot" as RSN {
+    + description : String
+    + topics : List
+    + readme : String
+    + syncedAt : DateTime
+  }
+  class "仓库列表项\nRepositoryListItem" as RLI {
+    + issueCount : Integer
+    + fileCount : Integer
+  }
+}
+
+package "文件管理 (File)" {
+  class "分类文件\nClassifiedFile" as CF {
+    + path : String
+    + category : FileCategory
+    + size : Integer
+  }
+  enum "文件类别\nFileCategory" as FC {
+    source_code = 源码
+    tests = 测试
+    documentation = 文档
+    configuration = 配置
+    ci_cd = CI/CD
+    dependency = 依赖
+    build = 构建
+    assets = 资源
+    data = 数据
+    other = 其他
+  }
+  class "类别统计\nCategorySummary" as CS {
+    + category : String
+    + count : Integer
+  }
+}
+
+package "Issue管理 (Issue)" {
+  class "GitHub Issue\nGitHubIssue" as GI {
+    + number : Integer
+    + title : String
+    + state : String
+    + htmlUrl : URL
+    + author : String
+    + labels : List
+    + createdAt : DateTime
+    + updatedAt : DateTime
+    + comments : Integer
+  }
+  class "Issue分类结果\nIssueClassification" as IC {
+    + category : IssueCategory
+    + confidence : Float
+    + reason : String
+    + suggestedAction : String
+    + signals : List
+  }
+  enum "Issue类别\nIssueCategory" as ICA {
+    bug = 缺陷
+    feature_request = 功能请求
+    question = 疑问
+    documentation = 文档
+    duplicate = 重复
+    info_needed = 信息不足
+    invalid = 无效
+    maintenance = 维护
+    unknown = 未知
+  }
+}
+
+package "Webhook事件" {
+  class "Webhook事件记录\nWebhookEventRecord" as WER {
+    + eventId : String
+    + eventType : String
+    + action : String
+    + repository : String
+    + issueNumber : Integer
+    + receivedAt : DateTime
+    + rawPayload : Dictionary
+  }
+}
+
+package "智能问答 (Assistant)" {
+  class "对话请求\nAssistantChatRequest" as ACR {
+    + owner : String
+    + name : String
+    + message : String
+    + freshness : FreshnessMode
+    + history : List
+  }
+  class "对话响应\nAssistantChatResponse" as ACS {
+    + answer : String
+    + usedCachedData : Boolean
+  }
+  class "工具调用\nAssistantToolCall" as ATC {
+    + name : String
+    + args : Dictionary
+    + summary : String
+  }
+  class "引用来源\nAssistantCitation" as ACI {
+    + type : String
+    + label : String
+    + url : URL
+    + path : String
+  }
+  class "项目分析\nProjectAnalysis" as PA {
+    + projectType : String
+    + sourceCount : Integer
+    + entryFiles : List
+    + topDirectories : List
+    + testFiles : List
+    + docFiles : List
+  }
+}
+
+package "存储层 (Storage)" {
+  interface "存储接口\nRepositoryStore" as RST {
+    + save(snapshot) : void
+    + get(owner, name) : Snapshot
+    + list() : List
+  }
+  class "内存存储\nInMemoryRepositoryStore" as IMS {
+    - snapshots : Dictionary
+  }
+}
+
+RSN *-- "1" RI : 包含
+RSN *-- "1" RS : 包含
+
+RSN *-- "*" CF : 包含文件
+RSN *-- "*" CS : 文件分类统计
+RSN *-- "*" CS : Issue分类统计
+CF --> "1" FC : 属于
+
+RSN *-- "*" GI : 包含Issue
+GI *-- "1" IC : 被分类为
+IC --> "1" ICA : 判定为
+
+RSN *-- "1" PA : 分析结果
+
+WER --> "0..1" GI : 对应
+
+ACS *-- "*" ATC : 包含
+ACS *-- "*" ACI : 包含
+ACR --> "1" RSN : 查询
+
+IMS ..|> RST : 实现
+
+@enduml

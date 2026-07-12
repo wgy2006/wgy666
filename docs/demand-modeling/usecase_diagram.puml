@@ -1,0 +1,51 @@
+@startuml
+skinparam packageStyle rectangle
+left to right direction
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontSize 12
+title IssueScope - GitHub仓库问答与Issue分析系统 用例图
+
+actor "开源项目维护者\n(Maintainer)" as M
+actor "开发贡献者\n(Contributor)" as C
+actor "GitHub\n(外部系统)" as GH
+actor "LLM 服务\n(外部系统)" as LLM
+
+rectangle "IssueScope 智能助手平台" {
+  usecase "UC1 同步GitHub仓库" as UC1
+  usecase "UC9 管理同步仓库" as UC9
+  usecase "UC2 浏览仓库概览" as UC2
+  usecase "UC3 查看文件结构" as UC3
+  usecase "UC4 查看Issue列表" as UC4
+  usecase "UC5 分析Issue分类" as UC5
+  usecase "UC6 智能问答" as UC6
+  usecase "UC7 接收Webhook事件" as UC7
+  usecase "UC8 自动分类新Issue" as UC8
+
+  note right of UC1 : 输入URL拉取仓库数据
+  note right of UC2 : Star、语言、Forks统计
+  note right of UC3 : 按目录树和文件分类浏览
+  note right of UC4 : 按分类和状态筛选
+  note right of UC5 : 规则判断Issue类别
+  note right of UC6 : LLM+工具调用自动回答
+}
+
+M --> UC1
+M --> UC9
+M --> UC2
+M --> UC3
+M --> UC4
+M --> UC5
+M --> UC6
+
+C --> UC2
+C --> UC6
+
+GH ..> UC1 : 提供REST API
+GH ..> UC7 : 推送事件
+LLM ..> UC6 : 生成回答
+
+UC7 ..> UC8 : <<include>>
+UC6 ..> UC2 : <<include>>
+UC6 ..> UC3 : <<include>>
+UC6 ..> UC4 : <<include>>
+@enduml
