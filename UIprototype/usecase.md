@@ -1,3 +1,5 @@
 # usecase & class
 
-![](UIprototype/demand-modeling/usecase.png)
+![](demand-modeling/usecase.png)
+
+![](demand-modeling/conceptual-class.png)
