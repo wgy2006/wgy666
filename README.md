@@ -41,7 +41,7 @@ npm run dev
 前端默认请求 `http://localhost:8000`。如需修改：
 
 ```powershell
-$env:VITE_API_BASE_URL="http://localhost:8000"
+$env:VITE_API_BASE_URL="http://85.211.226.195:8000"
 ```
 
 ## 目录
