@@ -1,0 +1,39 @@
+\contentsline {section}{\numberline {1}简介}{5}{section.1}%
+\contentsline {subsection}{\numberline {1.1}目的}{5}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}范围}{5}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}定义、首字母缩写词和缩略语}{5}{subsection.1.3}%
+\contentsline {subsection}{\numberline {1.4}参考资料}{5}{subsection.1.4}%
+\contentsline {section}{\numberline {2}定位}{5}{section.2}%
+\contentsline {subsection}{\numberline {2.1}商机}{5}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}问题说明}{6}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}产品定位说明}{6}{subsection.2.3}%
+\contentsline {section}{\numberline {3}涉众和用户说明}{7}{section.3}%
+\contentsline {subsection}{\numberline {3.1}市场统计}{7}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}涉众概要}{7}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}用户概要}{7}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}关键涉众/用户需要}{7}{subsection.3.4}%
+\contentsline {subsection}{\numberline {3.5}备选方案和竞争}{8}{subsection.3.5}%
+\contentsline {section}{\numberline {4}产品概述}{8}{section.4}%
+\contentsline {subsection}{\numberline {4.1}产品总体效果}{8}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}功能摘要}{8}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}假设与依赖关系}{8}{subsection.4.3}%
+\contentsline {section}{\numberline {5}产品特性}{8}{section.5}%
+\contentsline {subsection}{\numberline {5.1}仓库接入与管理}{8}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}知识库构建}{9}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}智能问答}{9}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Issue 智能分析}{9}{subsection.5.4}%
+\contentsline {subsection}{\numberline {5.5}Issue 自动修复与变更生成（进阶）}{9}{subsection.5.5}%
+\contentsline {subsection}{\numberline {5.6}长期记忆与学习（进阶）}{9}{subsection.5.6}%
+\contentsline {subsection}{\numberline {5.7}FAQ 知识库（进阶）}{9}{subsection.5.7}%
+\contentsline {section}{\numberline {6}约束}{9}{section.6}%
+\contentsline {section}{\numberline {7}质量属性}{10}{section.7}%
+\contentsline {section}{\numberline {8}优先级}{10}{section.8}%
+\contentsline {section}{\numberline {9}其他产品需求}{10}{section.9}%
+\contentsline {subsection}{\numberline {9.1}适用的标准}{10}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}系统需求}{11}{subsection.9.2}%
+\contentsline {subsection}{\numberline {9.3}前端技术选型}{11}{subsection.9.3}%
+\contentsline {subsection}{\numberline {9.4}环境需求}{11}{subsection.9.4}%
+\contentsline {section}{\numberline {10}文档需求}{11}{section.10}%
+\contentsline {subsection}{\numberline {10.1}用户手册}{11}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}联机帮助}{11}{subsection.10.2}%
+\contentsline {subsection}{\numberline {10.3}安装指南与自述文件}{11}{subsection.10.3}%
