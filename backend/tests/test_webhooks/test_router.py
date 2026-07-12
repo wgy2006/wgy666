@@ -36,8 +36,17 @@ def test_post_github_webhook_dev_mode(client):
     """Dev mode: no secret configured, any payload is accepted."""
     payload = {
         "action": "opened",
-        "issue": {"title": "Bug: crash", "body": "traceback", "number": 1, "labels": []},
-        "repository": {"full_name": "owner/repo"},
+        "issue": {
+            "title": "Bug: crash",
+            "body": "traceback",
+            "number": 1,
+            "labels": [],
+            "html_url": "https://github.com/owner/repo/issues/1",
+            "state": "open",
+            "user": {"login": "tester"},
+            "comments": 0,
+        },
+        "repository": {"full_name": "other/repo"},
     }
     resp = client.post(
         "/api/webhooks/github",
