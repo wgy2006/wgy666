@@ -1,0 +1,1467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>IssueScope 界面原型</title>
+<style>
+/* ===================== Reset & Base ===================== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif;background:#f5f7f8;color:#182027;line-height:1.5}
+/* ===================== Layout ===================== */
+.workspace{min-height:100vh;display:grid;grid-template-columns:300px minmax(0,1fr) 360px;background:#f5f7f8;color:#182027}
+/* ===================== Sidebar ===================== */
+.sidebar{background:#fff;border-right:1px solid #d9e0e6;padding:24px;display:flex;flex-direction:column;gap:20px;position:sticky;top:0;height:100vh;box-sizing:border-box;overflow-y:auto}
+.brand{display:flex;gap:10px;align-items:center}
+.brand svg{flex-shrink:0}
+.brand h1{font-size:22px;line-height:1.1;margin:0}
+.brand p{color:#6a747e;margin:0;font-size:12px}
+.sync-form{display:grid;gap:14px}
+.sync-form label{display:grid;gap:6px;color:#43505c;font-size:12px;font-weight:700}
+.sync-form input,.field-grid input{width:100%;box-sizing:border-box;border:1px solid #cbd5dd;border-radius:7px;background:#fff;color:#182027;font:inherit;font-size:14px;padding:9px 11px;transition:border-color .15s,box-shadow .15s}
+.sync-form input:focus,.field-grid input:focus{border-color:#2d6cdf;box-shadow:0 0 0 3px rgba(45,108,223,.14);outline:none}
+.field-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.field-grid label{font-size:11px}
+.field-grid input{font-size:13px;padding:7px 9px}
+/* ===================== Buttons ===================== */
+button,.ghost-button{border:0;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:0 14px;font:inherit;font-weight:700;text-decoration:none;cursor:pointer;transition:background .15s,border-color .15s}
+.primary-button{background:#1f6feb;color:#fff;font-size:14px}
+.primary-button:hover{background:#1a5dc7}
+.primary-button:disabled{background:#8baee8;cursor:progress}
+.ghost-button{color:#1f2933;background:#eef2f6;font-size:13px}
+.ghost-button:hover{background:#e2e8f0}
+.icon-button{position:relative;display:flex;align-items:center;justify-content:center;width:38px;height:38px;border:1px solid #d9e0e6;border-radius:8px;background:#fff;color:#43505c;cursor:pointer;transition:background .15s,border-color .15s}
+.icon-button:hover{background:#f0f4f8;border-color:#b7c4cf}
+.icon-button.active{background:#e6f0fa;border-color:#2d6cdf;color:#1d4ed8}
+.icon-button svg{width:20px;height:20px;display:block}
+/* ===================== Sidebar actions ===================== */
+.sidebar-actions{display:flex;gap:6px}
+.sidebar-action{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 10px;border:1px solid #d9e0e6;border-radius:8px;background:#fff;font-size:12px;font-weight:600;color:#43505c;cursor:pointer;transition:background .15s,border-color .15s}
+.sidebar-action:hover{background:#f0f4f8;border-color:#b7c4cf}
+.badge-count{position:absolute;top:-5px;right:-5px;background:#d93a3a;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;padding:0 4px;border-radius:999px;line-height:16px;text-align:center;box-shadow:0 0 0 2px #fff}
+.sidebar-section{border-top:1px solid #e4e9ee;padding-top:16px}
+.sidebar-section h2{margin:0 0 8px;font-size:14px}
+.sidebar-section ul{margin:0;padding-left:18px;color:#52606d;line-height:1.7;font-size:13px}
+.notice{border-radius:7px;display:flex;gap:10px;align-items:flex-start;padding:10px;font-size:13px}
+.notice.error{background:#fff1f0;color:#9f1d18}
+.notice.info{background:#e6f0fa;color:#1555a0}
+/* ===================== Main Content ===================== */
+.content{min-width:0;padding:24px;display:grid;gap:20px;align-content:start;max-height:100vh;overflow-y:auto}
+.top-bar{display:flex;align-items:center;justify-content:space-between;padding:0 0 10px}
+.top-actions{display:flex;gap:6px;margin-left:auto}
+.repo-header{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
+.repo-header h2{font-size:28px;line-height:1.18;margin:0}
+.eyebrow{margin:0 0 4px;color:#6a747e;font-size:12px;font-weight:600}
+.description{margin:6px 0 0;color:#4b5563;max-width:800px;font-size:14px;line-height:1.5}
+.topic-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.topic-row span{border-radius:999px;background:#e7f0fb;color:#1555a0;padding:3px 8px;font-size:11px;font-weight:700}
+/* ===================== Metric Cards ===================== */
+.metric-grid{display:grid;gap:14px;grid-template-columns:repeat(4,1fr)}
+.metric,.panel{background:#fff;border:1px solid #dde4ea;border-radius:8px}
+.metric{padding:16px;display:flex;align-items:center;gap:10px}
+.metric-icon{width:36px;height:36px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;background:#e8f5ef;color:#18794e;flex-shrink:0}
+.metric-icon svg{width:18px;height:18px;display:block}
+.metric strong{font-size:22px;display:block;line-height:1.2}
+.metric p{margin:0;color:#6a747e;font-size:12px}
+/* ===================== Panels ===================== */
+.panel{padding:16px;min-width:0}
+.panel h3{font-size:15px;margin:0 0 14px}
+.two-column{display:grid;gap:14px;grid-template-columns:repeat(2,1fr)}
+/* ===================== Category Bars ===================== */
+.bars{display:grid;gap:11px}
+.bar-row>div:first-child{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#3d4852;margin-bottom:4px}
+.bar-track{height:8px;border-radius:999px;background:#edf1f5;overflow:hidden}
+.bar-track span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#2d6cdf,#18a058);transition:width .3s}
+.readme{color:#4b5563;line-height:1.6;white-space:pre-wrap;max-height:240px;overflow:auto;font-size:13px}
+.muted{color:#6a747e;font-size:13px}
+/* ===================== Analysis section ===================== */
+.analysis-layout{display:grid;grid-template-columns:minmax(0,.9fr) minmax(340px,1.1fr);gap:16px;align-items:stretch}
+.analysis-layout>*,.analysis-grid>*{min-width:0}
+.analysis-summary{border:1px solid #e5ebf0;border-radius:8px;padding:16px;background:#fbfcfd}
+.analysis-kicker{margin:0 0 6px;color:#6a747e;font-size:11px;font-weight:700;letter-spacing:.04em}
+.analysis-summary h4{margin:0;color:#182027;font-size:20px}
+.analysis-summary p:not(.analysis-kicker){color:#4b5563;line-height:1.65;margin:10px 0 0;font-size:13px}
+.analysis-summary .analysis-basis{color:#6a747e;font-size:11px}
+.analysis-warning{display:flex;align-items:flex-start;gap:8px;margin-top:12px;border:1px solid #f2c36b;border-radius:8px;background:#fff9e8;color:#795500;font-size:11px;line-height:1.5;padding:8px 10px}
+.analysis-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.analysis-chips span{border-radius:999px;background:#eef6ff;color:#1555a0;font-size:11px;font-weight:700;padding:4px 8px}
+.mindmap{min-height:220px;border:1px solid #dbe5ee;border-radius:8px;background:linear-gradient(90deg,rgba(31,111,235,.06) 1px,transparent 1px),linear-gradient(0deg,rgba(31,111,235,.06) 1px,transparent 1px),#fff;background-size:32px 32px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-items:center;padding:14px}
+.mindmap-center,.mindmap-node{border-radius:8px;border:1px solid #d9e0e6;background:#fff;box-shadow:0 6px 18px rgba(21,37,54,.05)}
+.mindmap-center{grid-row:span 2;min-height:100px;display:grid;place-content:center;text-align:center;padding:12px}
+.mindmap-center strong{color:#182027;font-size:16px}
+.mindmap-center span,.mindmap-node span{color:#6a747e;font-size:11px}
+.mindmap-node{min-height:68px;display:grid;align-content:center;justify-items:start;gap:4px;padding:10px;color:#1f6feb}
+.mindmap-node strong{color:#182027;font-size:18px}
+.analysis-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+.analysis-card{border:1px solid #e5ebf0;border-radius:8px;padding:12px;min-width:0}
+.analysis-card h4{display:flex;align-items:center;gap:6px;font-size:13px;margin:0 0 8px;color:#182027}
+.analysis-card h4 svg{color:#18794e;width:16px;height:16px}
+.analysis-card ul{margin:0;padding-left:16px;color:#4b5563;display:grid;gap:5px;font-size:12px}
+.analysis-card li{overflow-wrap:anywhere}
+.analysis-card{transition:background .12s,border-color .12s}
+.analysis-card.clickable{cursor:pointer}
+.analysis-card.clickable:hover{border-color:#a9bfd5;background:#f0f6fc}
+.analysis-card.clickable:active{background:#e6f0fa}
+.analysis-card .card-click-hint{font-size:10px;color:#9aa6b2;margin-top:6px;display:flex;align-items:center;gap:4px}
+/* Analysis detail modal */
+.analysis-detail{display:grid;gap:16px}
+.analysis-detail-header{border-bottom:1px solid #e4e9ee;padding-bottom:12px}
+.analysis-detail-header h3{margin:0;font-size:18px}
+.analysis-detail-header .analysis-sub{color:#6a747e;font-size:12px;margin-top:4px}
+.analysis-detail-body{display:grid;gap:14px}
+.analysis-detail-section{border:1px solid #e5ebf0;border-radius:8px;padding:14px;background:#fafbfc}
+.analysis-detail-section h4{font-size:13px;color:#43505c;margin:0 0 8px;display:flex;align-items:center;gap:6px}
+.analysis-detail-table{display:grid;gap:6px}
+.analysis-detail-row{display:grid;grid-template-columns:140px 1fr;gap:8px;padding:5px 0;border-bottom:1px solid #f0f2f4;font-size:13px}
+.analysis-detail-row:last-child{border-bottom:0}
+.analysis-detail-row .label{color:#6a747e;font-weight:600}
+.analysis-detail-row .value{color:#182027}
+.analysis-detail-row .value p{margin:0;line-height:1.5}
+.analysis-detail-file-list{display:grid;gap:4px}
+.analysis-detail-file-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:4px;background:#fff;border:1px solid #eef2f6;font-size:12px;transition:background .1s}
+.analysis-detail-file-item:hover{background:#f6f8fa}
+.analysis-detail-file-item .file-path{flex:1;color:#2d6cdf;font-weight:600}
+.analysis-detail-file-item .file-meta{color:#6a747e;font-size:10px}
+.analysis-detail-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+.analysis-stat-card{border:1px solid #eef2f6;border-radius:6px;padding:10px;text-align:center;background:#fff}
+.analysis-stat-card strong{display:block;font-size:22px;color:#182027}
+.analysis-stat-card span{font-size:11px;color:#6a747e}
+/* Dependency graph */
+.dep-graph-container{margin-top:16px;border:1px solid #e5ebf0;border-radius:8px;padding:16px;background:#fafbfc}
+.dep-graph-container h4{font-size:13px;color:#43505c;margin:0 0 10px;display:flex;align-items:center;gap:6px}
+.dep-graph{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;align-items:start}
+.dep-module{border:1px solid #d9e0e6;border-radius:8px;background:#fff;padding:12px;text-align:center;position:relative;transition:box-shadow .2s}
+.dep-module:hover{box-shadow:0 4px 14px rgba(21,37,54,.08)}
+.dep-module .module-name{font-size:12px;font-weight:700;color:#182027;display:block}
+.dep-module .module-count{font-size:10px;color:#6a747e;margin-top:2px;display:block}
+.dep-module .module-dot{width:24px;height:24px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:6px;font-size:14px}
+.dep-module .module-dot.source_code{background:#ddeeff;color:#2d6cdf}
+.dep-module .module-dot.tests{background:#ddf0e6;color:#18a058}
+.dep-module .module-dot.documentation{background:#fef3d5;color:#f0a030}
+.dep-module .module-dot.dependency{background:#ede9fe;color:#8b5cf6}
+.dep-module .module-dot.ci_cd{background:#ffe8e6;color:#d93a3a}
+.dep-arrows{display:flex;justify-content:center;gap:4px;margin:2px 0 0;font-size:9px;color:#9aa6b2}
+.dep-arrow-row{display:flex;justify-content:center;gap:16px;margin:4px 0;font-size:10px;color:#6a747e;flex-wrap:wrap}
+.dep-arrow-row span{display:flex;align-items:center;gap:3px}
+.dep-arrow-row .arr{color:#bbc5d0;font-size:12px}
+/* Large dep graph */
+.dep-graph-large{border:1px solid #e5ebf0;border-radius:8px;padding:20px;background:#fff;margin-top:10px;overflow-x:auto}
+.dep-graph-large h4{font-size:13px;color:#43505c;margin:0 0 12px;display:flex;align-items:center;gap:6px}
+.dep-graph-svg{display:flex;justify-content:center;min-height:180px;align-items:center}
+.dep-graph-svg svg{max-width:100%}
+/* ===================== Issues Table ===================== */
+.table{display:grid;gap:6px}
+.table-row{color:inherit;text-decoration:none;border:1px solid #e5ebf0;border-radius:7px;padding:10px 12px;display:grid;grid-template-columns:64px minmax(0,1fr) auto 56px;gap:10px;align-items:center;cursor:pointer;transition:background .12s,border-color .12s}
+.table-row:hover{border-color:#a9bfd5;background:#f9fbfd}
+.table-row:active{background:#eef4fa}
+.number{color:#6a747e;font-size:12px}
+.grow{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.confidence{color:#6a747e;font-size:12px;text-align:right}
+.badge{border-radius:999px;padding:3px 8px;font-size:11px;font-weight:700;white-space:nowrap;background:#e7f0fb;color:#1555a0}
+.badge.bug{background:#ffe8e6;color:#b42318}
+.badge.feature_request{background:#e7f8ed;color:#18794e}
+.badge.question,.badge.info_needed{background:#fff4d6;color:#946200}
+.badge.enhancement{background:#e7f0fb;color:#1555a0}
+/* ===================== Compact List ===================== */
+.compact-list{display:grid;gap:6px}
+.compact-list a{border:1px solid #e5ebf0;border-radius:7px;color:inherit;display:grid;gap:4px;padding:10px 12px;text-decoration:none;transition:background .12s,border-color .12s}
+.compact-list a:hover{border-color:#a9bfd5;background:#f9fbfd}
+.compact-list strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.compact-list span{color:#6a747e;font-size:12px}
+/* ===================== Chat Sidebar ===================== */
+.chat-sidebar{background:#fff;border-left:1px solid #d9e0e6;height:100vh;position:sticky;top:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto auto}
+.chat-header{padding:18px;border-bottom:1px solid #e4e9ee}
+.chat-header>div{display:flex;gap:10px;align-items:center}
+.chat-header h2{margin:0;font-size:16px}
+.chat-header p{margin:2px 0 0;color:#6a747e;font-size:12px}
+.chat-thread{overflow:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+.chat-message{display:grid;grid-template-columns:26px minmax(0,1fr);gap:8px;align-items:start}
+.chat-message.user{grid-template-columns:minmax(0,1fr) 26px}
+.chat-message.user .chat-avatar{grid-column:2;grid-row:1;background:#e7f0fb;color:#1555a0}
+.chat-message.user .chat-bubble{grid-column:1;background:#1f6feb;border-color:#1f6feb;color:#fff}
+.chat-avatar{width:26px;height:26px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;background:#e8f5ef;color:#18794e}
+.chat-avatar svg{width:14px;height:14px}
+.chat-bubble{border:1px solid #e1e8ee;border-radius:8px;background:#fbfcfd;padding:10px 11px;min-width:0;color:#2b3640;font-size:13px;line-height:1.5}
+.chat-bubble.loading{display:flex;align-items:center;gap:6px;color:#52606d}
+.chat-form{display:grid;grid-template-columns:minmax(0,1fr) 40px;gap:6px;padding:12px;border-top:1px solid #e4e9ee}
+.chat-form input{min-height:38px;width:100%;box-sizing:border-box;border:1px solid #cbd5dd;border-radius:7px;background:#fff;color:#182027;font:inherit;font-size:13px;padding:8px 10px}
+.chat-form input:focus{border-color:#2d6cdf;box-shadow:0 0 0 3px rgba(45,108,223,.14);outline:none}
+.chat-form button{min-height:38px;width:40px;padding:0;background:#1f6feb;color:#fff;border-radius:7px;border:0;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.chat-form button:disabled{background:#b8c4d0;cursor:not-allowed}
+.chat-error{margin:0 14px 10px}
+/* ===================== Modals ===================== */
+.modal-overlay{position:fixed;inset:0;z-index:1000;background:rgba(24,32,39,.45);display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:#fff;border-radius:12px;padding:20px;width:520px;max-height:80vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.18);display:grid;gap:14px}
+.modal-wide{width:680px}
+.modal-header{display:flex;align-items:center;justify-content:space-between}
+.modal-header h3{margin:0;font-size:16px}
+/* ===================== File Dependency Tree ===================== */
+.tree-container{display:grid;grid-template-columns:1fr 1fr;gap:16px;min-height:320px}
+.tree-pane{border:1px solid #e5ebf0;border-radius:8px;padding:10px;overflow:auto;max-height:400px;background:#fafbfc}
+.tree-pane h4{font-size:12px;color:#6a747e;margin:0 0 8px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.tree-node{user-select:none}
+.tree-node-children{padding-left:18px}
+.tree-row{display:flex;align-items:center;gap:5px;padding:3px 6px;border-radius:4px;cursor:pointer;font-size:12px;transition:background .1s}
+.tree-row:hover{background:#eef2f6}
+.tree-row.selected{background:#e6f0fa}
+.tree-arrow{width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;color:#6a747e;transition:transform .15s;flex-shrink:0}
+.tree-arrow.expanded{transform:rotate(90deg)}
+.tree-icon{flex-shrink:0;width:14px;height:14px}
+.tree-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.tree-dot.source_code{background:#2d6cdf}
+.tree-dot.tests{background:#18a058}
+.tree-dot.documentation{background:#f0a030}
+.tree-dot.dependency{background:#8b5cf6}
+.tree-dot.configuration{background:#6a747e}
+.tree-dot.ci_cd{background:#d93a3a}
+.tree-dot.build{background:#e8792e}
+.tree-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tree-file-count{color:#6a747e;font-size:10px;margin-left:auto}
+.dep-detail-pane{border:1px solid #e5ebf0;border-radius:8px;padding:14px;background:#fbfcfd;display:flex;flex-direction:column;gap:12px}
+.dep-detail-pane .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#6a747e;font-size:13px;gap:8px;text-align:center;padding:20px}
+.dep-detail-header{border-bottom:1px solid #e4e9ee;padding-bottom:10px}
+.dep-detail-header h4{margin:0;font-size:14px;color:#182027}
+.dep-detail-header .dep-path{color:#6a747e;font-size:11px;margin-top:2px}
+.dep-section{margin-bottom:0}
+.dep-section h5{font-size:12px;color:#43505c;margin:0 0 6px;display:flex;align-items:center;gap:6px}
+.dep-list{display:flex;flex-direction:column;gap:3px}
+.dep-item{display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:4px;font-size:12px;cursor:pointer;transition:background .1s}
+.dep-item:hover{background:#eef2f6}
+.dep-item .dep-source{color:#2d6cdf;font-weight:600}
+.dep-item .dep-arrow{color:#9aa6b2;font-size:11px}
+.dep-item .dep-target{color:#43505c}
+.dep-item .dep-detail{color:#6a747e;font-size:10px;margin-left:auto}
+.dep-badge{font-size:9px;padding:1px 5px;border-radius:999px;background:#eef2f6;color:#6a747e;font-weight:600}
+
+/* Dependencies that are within the repo are clickable & blue */
+.dep-internal{color:#2d6cdf;cursor:pointer;font-weight:600}
+.dep-internal:hover{text-decoration:underline}
+.dep-external{color:#6a747e}
+.dep-external .dep-target{color:#6a747e}
+
+/* ===================== Issue Detail Modal ===================== */
+.issue-detail{display:grid;gap:16px}
+.issue-detail-header{border-bottom:1px solid #e4e9ee;padding-bottom:14px}
+.issue-detail-header .issue-number{font-size:12px;color:#6a747e}
+.issue-detail-header h3{margin:4px 0;font-size:20px;line-height:1.3}
+.issue-meta-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+.issue-meta-item{font-size:12px;color:#43505c;display:flex;align-items:center;gap:4px}
+.issue-meta-item svg{width:14px;height:14px;color:#6a747e}
+.classification-detail{background:#f6f8fa;border-radius:8px;padding:14px;display:grid;gap:12px}
+.classification-detail h4{margin:0;font-size:14px;color:#182027;display:flex;align-items:center;gap:8px}
+.classification-detail h4 .badge{font-size:12px}
+.classification-row{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:13px}
+.classification-row .label{color:#6a747e;font-weight:600}
+.classification-row .value{color:#182027}
+.classification-row .value p{margin:0;line-height:1.5}
+.confidence-bar{height:6px;border-radius:999px;background:#edf1f5;overflow:hidden;margin-top:4px}
+.confidence-bar span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#2d6cdf,#18a058)}
+.signal-list{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.signal-tag{border-radius:999px;background:#eef2f6;color:#43505c;font-size:11px;padding:3px 7px;font-weight:600}
+.issue-body{border:1px solid #e5ebf0;border-radius:6px;padding:12px;font-size:13px;line-height:1.6;color:#2b3640;background:#fafbfc;max-height:200px;overflow-y:auto;white-space:pre-wrap}
+.issue-comments{display:grid;gap:8px}
+.issue-comment{padding:10px;background:#f6f8fa;border-radius:6px;font-size:12px;color:#43505c}
+.issue-comment-author{font-weight:700;color:#182027}
+.issue-comment-time{color:#6a747e;font-size:11px;margin-left:8px}
+.issue-comment-text{margin-top:4px;line-height:1.5}
+/* ===================== Tooltip ===================== */
+.tree-tooltip{position:fixed;background:#1a232e;color:#e3e8ee;font-size:11px;padding:6px 10px;border-radius:6px;pointer-events:none;z-index:2000;max-width:280px;line-height:1.4;box-shadow:0 4px 12px rgba(0,0,0,.3);display:none}
+/* ===================== Empty / Loading ===================== */
+.empty-state{min-height:calc(100vh - 60px);display:grid;place-content:center;justify-items:center;gap:12px;color:#52606d;text-align:center}
+.empty-state h2{margin:0;color:#182027;font-size:22px}
+.empty-state p{max-width:480px;margin:0;font-size:14px}
+.empty-state svg{width:40px;height:40px;color:#6a747e}
+.spin{animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* ===================== Responsive ===================== */
+@media(max-width:1400px){.analysis-layout{grid-template-columns:1fr}.analysis-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:1200px){.workspace{grid-template-columns:280px 1fr 320px}}
+@media(max-width:1100px){.analysis-grid,.mindmap{grid-template-columns:1fr}.mindmap-center{grid-row:auto}}
+@media(max-width:980px){.workspace{grid-template-columns:1fr}.sidebar,.chat-sidebar{position:static;height:auto}.chat-sidebar{border-left:0;border-top:1px solid #d9e0e6}.chat-thread{max-height:400px}.metric-grid,.two-column,.analysis-layout,.analysis-grid,.tree-container{grid-template-columns:1fr}.repo-header{flex-direction:column}.table-row{grid-template-columns:56px 1fr}.badge,.confidence{justify-self:start}.tree-container{grid-template-columns:1fr}}
+/* ===================== Inbox ===================== */
+.inbox-panel{min-height:200px}
+.inbox-empty{font-size:13px;text-align:center;padding:20px 0;color:#6a747e}
+.inbox-list{display:grid;gap:6px}
+.inbox-item{background:#f6f8fa;border-radius:6px;padding:8px 10px;display:grid;gap:3px}
+.inbox-item-header{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.inbox-time{font-size:10px;color:#6a747e;white-space:nowrap}
+.inbox-item-title{font-size:12px;font-weight:600;color:#2d6cdf;text-decoration:none;border:0;background:none;padding:0;text-align:left;cursor:pointer}
+.inbox-item-title:hover{text-decoration:underline}
+.inbox-item-reason{margin:0;font-size:11px;color:#6a747e;line-height:1.4}
+/* Tab switching for prototype */
+.prototype-tabs{display:flex;gap:6px;margin-bottom:4px}
+.prototype-tab{padding:6px 14px;border:1px solid #d9e0e6;border-radius:7px;background:#fff;font-size:12px;font-weight:600;color:#43505c;cursor:pointer;transition:all .15s}
+.prototype-tab:hover{border-color:#b7c4cf;background:#f0f4f8}
+.prototype-tab.active{background:#1f6feb;color:#fff;border-color:#1f6feb}
+</style>
+</head>
+<body>
+
+<div class="workspace" id="app">
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#18794e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+      <div>
+        <h1>IssueScope</h1>
+        <p>GitHub Issue 智能分析</p>
+      </div>
+    </div>
+
+    <form class="sync-form" onsubmit="return false">
+      <label>GitHub 仓库
+        <input type="text" value="https://github.com/fastapi/fastapi" disabled placeholder="https://github.com/owner/repo">
+      </label>
+      <div class="field-grid">
+        <label>Issues <input type="number" value="30" disabled></label>
+        <label>PRs <input type="number" value="15" disabled></label>
+        <label>Commits <input type="number" value="12" disabled></label>
+        <label>Files <input type="number" value="600" disabled></label>
+      </div>
+      <button class="primary-button" type="button" style="background:#8baee8;cursor:default">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+        数据已加载（静态原型）
+      </button>
+    </form>
+
+    <div class="sidebar-actions">
+      <button class="sidebar-action" onclick="toggleInbox()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        通知
+        <span class="badge-count" style="position:static;display:inline-flex;margin-left:2px">8</span>
+      </button>
+      <button class="sidebar-action" onclick="toggleSettings()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        配置
+      </button>
+    </div>
+
+    <section class="sidebar-section">
+      <h2>当前模块边界</h2>
+      <ul>
+        <li>GitHub REST API 接入</li>
+        <li>仓库文件规则分类</li>
+        <li>Issue 初版规则分类</li>
+        <li>文件依赖关系分析</li>
+        <li>后续数据库与 RAG 可替换接入</li>
+      </ul>
+    </section>
+
+    <section class="sidebar-section" style="margin-top:auto;border-top:1px solid #e4e9ee;padding-top:12px">
+      <p style="font-size:11px;color:#6a747e;margin:0">🧪 静态界面原型 · 数据为模拟展示<br>基于前端 v0.1 构建 · 2026-07</p>
+    </section>
+  </aside>
+
+  <!-- ===================== MAIN CONTENT ===================== -->
+  <section class="content" id="mainContent">
+    <!-- Top bar -->
+    <div class="top-bar">
+      <div></div>
+      <div class="top-actions">
+        <button class="icon-button" onclick="toggleInbox()" title="通知">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="badge-count" style="top:-6px;right:-6px">8</span>
+        </button>
+        <button class="icon-button" onclick="toggleSettings()" title="配置">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Tab bar: switch between Dashboard and Dependency Tree -->
+    <div class="prototype-tabs">
+      <button class="prototype-tab active" onclick="switchTab('dashboard',this)">📊 仪表盘</button>
+      <button class="prototype-tab" onclick="switchTab('dependency',this)">🔗 文件依赖关系树</button>
+    </div>
+
+    <!-- ========== DASHBOARD TAB ========== -->
+    <div id="tab-dashboard">
+      <!-- Repo header -->
+      <header class="repo-header">
+        <div>
+          <p class="eyebrow">数据快照 · 2026-07-13 14:30</p>
+          <h2>fastapi/fastapi</h2>
+          <p class="description">FastAPI 框架 —— 高性能、易学习、快速编码、可用于生产环境的 Python Web 框架。基于 Starlette 和 Pydantic。</p>
+          <div class="topic-row">
+            <span>fastapi</span>
+            <span>python</span>
+            <span>async</span>
+            <span>openapi</span>
+            <span>pydantic</span>
+            <span>swagger</span>
+            <span>rest-api</span>
+            <span>web-framework</span>
+          </div>
+        </div>
+        <a class="ghost-button" href="https://github.com/fastapi/fastapi" target="_blank">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+          GitHub
+        </a>
+      </header>
+
+      <!-- Metric cards -->
+      <section class="metric-grid" id="metricsContainer"></section>
+
+      <!-- Classification + Language -->
+      <section class="two-column">
+        <div class="panel"><h3>Issue 分类</h3><div class="bars" id="issueCategories"></div></div>
+        <div class="panel"><h3>文件分类</h3><div class="bars" id="fileCategories"></div></div>
+      </section>
+
+      <section class="two-column">
+        <div class="panel"><h3>语言分布</h3><div class="bars" id="languageBars"></div></div>
+        <div class="panel"><h3>README 摘要</h3>
+          <p class="readme">FastAPI is a modern, fast (high-performance), web framework for building APIs with Python 3.8+ based on standard Python type hints.
+
+The key features are:
+- **Fast**: Very high performance, on par with NodeJS and Go (thanks to Starlette and Pydantic). One of the fastest Python frameworks.
+- **Fast to code**: Increase the speed to develop features by about 200% to 300%. *
+- **Fewer bugs**: Reduce about 40% of human-induced errors. *
+- **Intuitive**: Great editor support. Completion everywhere. Less time debugging.
+- **Easy**: Designed to be easy to use and learn. Less time reading docs.
+- **Short**: Minimize code duplication. Multiple features from each parameter declaration.
+- **Robust**: Get production-ready code. With automatic interactive documentation.
+- **Standards-based**: Based on (and fully compatible with) the open standards for APIs: OpenAPI and JSON Schema.</p>
+        </div>
+      </section>
+
+      <!-- Project Analysis -->
+      <div id="projectAnalysisContainer"></div>
+
+      <!-- Issues List (clickable) -->
+      <div class="panel">
+        <h3>Issues · 智能分析分类</h3>
+        <p style="font-size:12px;color:#6a747e;margin:-8px 0 12px">👉 点击任意 Issue 行查看详细的智能分析结果</p>
+        <div class="table" id="issuesContainer"></div>
+      </div>
+
+      <!-- PRs & Commits -->
+      <section class="two-column">
+        <div class="panel"><h3>近期 PR</h3><div class="compact-list" id="prContainer"></div></div>
+        <div class="panel"><h3>近期提交</h3><div class="compact-list" id="commitContainer"></div></div>
+      </section>
+    </div>
+
+    <!-- ========== DEPENDENCY TREE TAB ========== -->
+    <div id="tab-dependency" style="display:none">
+      <div class="panel">
+        <h3>🔗 文件依赖关系树</h3>
+        <p style="font-size:12px;color:#6a747e;margin:-8px 0 12px">左侧浏览仓库文件树，点击任意文件查看其导入依赖关系和被依赖情况</p>
+        <div class="tree-container">
+          <div class="tree-pane">
+            <h4>📁 仓库文件树</h4>
+            <div id="fileTree"></div>
+          </div>
+          <div class="dep-detail-pane" id="depDetail">
+            <div class="empty-state">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              <span>点击左侧文件查看依赖详情</span>
+              <span style="font-size:11px;color:#9aa6b2">展示该文件的导入语句、本地依赖和外部包依赖</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ===================== CHAT SIDEBAR ===================== -->
+  <aside class="chat-sidebar">
+    <header class="chat-header">
+      <div>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#18794e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <div>
+          <h2>Repository Agent</h2>
+          <p>fastapi/fastapi</p>
+        </div>
+      </div>
+    </header>
+
+    <div class="chat-thread" id="chatThread"></div>
+
+    <form class="chat-form" onsubmit="handleChat(event)">
+      <input type="text" id="chatInput" placeholder="问：这个项目的测试在哪里？" value="">
+      <button type="submit" aria-label="发送">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </form>
+  </aside>
+</div>
+
+<!-- ===================== INBOX MODAL ===================== -->
+<div class="modal-overlay" id="inboxModal" style="display:none" onclick="closeInbox(event)">
+  <section class="modal inbox-panel" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>通知 · Webhook 事件</h3>
+      <button class="icon-button" onclick="toggleInbox()">✕</button>
+    </div>
+    <div id="inboxList"></div>
+  </section>
+</div>
+
+<!-- ===================== SETTINGS MODAL ===================== -->
+<div class="modal-overlay" id="settingsModal" style="display:none" onclick="closeSettings(event)">
+  <section class="modal" onclick="event.stopPropagation()" style="width:420px">
+    <div class="modal-header">
+      <h3>Webhook 配置</h3>
+      <button class="icon-button" onclick="toggleSettings()">✕</button>
+    </div>
+    <label style="display:grid;gap:6px;color:#43505c;font-size:12px;font-weight:700">
+      Webhook URL
+      <input value="https://api.issuescope.dev/api/webhooks/github" readonly disabled>
+    </label>
+    <label style="display:grid;gap:6px;color:#43505c;font-size:12px;font-weight:700">
+      GitHub Webhook Secret
+      <input value="••••••••••••••••" readonly disabled>
+    </label>
+    <p style="margin:0;font-size:11px;color:#6a747e;line-height:1.5">
+      在 GitHub 仓库 Settings → Webhooks 中填入以上 URL 和 Secret 以启用自动监听。
+    </p>
+  </section>
+</div>
+
+<!-- ===================== ISSUE DETAIL MODAL ===================== -->
+<div class="modal-overlay" id="issueModal" style="display:none" onclick="closeIssueDetail(event)">
+  <section class="modal modal-wide" onclick="event.stopPropagation()" id="issueModalContent">
+  </section>
+</div>
+
+<!-- ===================== ANALYSIS DETAIL MODAL ===================== -->
+<div class="modal-overlay" id="analysisModal" style="display:none" onclick="closeAnalysisDetail(event)">
+  <section class="modal modal-wide" onclick="event.stopPropagation()" id="analysisModalContent">
+  </section>
+</div>
+
+<!-- ===================== DEPENDENCY TOOLTIP ===================== -->
+<div class="tree-tooltip" id="treeTooltip"></div>
+
+<script>
+// ===================== MOCK DATA =====================
+const MOCK = {
+  stats: { stars: 84213, forks: 7215, open_issues: 246, files: 523 },
+  languageBytes: { Python: 5842000, TypeScript: 892000, JavaScript: 345000, CSS: 128000, HTML: 76000, Dockerfile: 12000, Shell: 18000 },
+  issueCategories: [
+    { category: 'bug', count: 42 },
+    { category: 'feature_request', count: 35 },
+    { category: 'question', count: 28 },
+    { category: 'info_needed', count: 15 },
+    { category: 'enhancement', count: 12 },
+  ],
+  fileCategories: [
+    { category: 'source_code', count: 286 },
+    { category: 'tests', count: 108 },
+    { category: 'documentation', count: 67 },
+    { category: 'dependency', count: 24 },
+    { category: 'configuration', count: 22 },
+    { category: 'ci_cd', count: 16 },
+  ],
+  issues: [
+    { number: 12345, title: 'Add support for WebSocket disconnect reason', author: 'johndoe', state: 'open', labels: ['enhancement', 'websocket'], comments: 8, updated_at: '2026-07-12T14:30:00Z', classification: { category: 'feature_request', confidence: 0.94, reason: '描述中包含 "feature request" 关键词，且明确提出了新功能的实现需求', suggested_action: '标记为 enhancement，按功能请求流程处理，等待社区讨论后实现', signals: ['feature request 关键词匹配', '新功能描述', '包含实现方案建议'] }, body: '## Feature Request\n\nIt would be great if WebSocket connections could provide a disconnect reason when the connection is closed. Currently, the close event does not expose the reason code.\n\n```python\n@app.websocket("/ws")\nasync def websocket_endpoint(websocket: WebSocket):\n    await websocket.accept()\n    try:\n        while True:\n            data = await websocket.receive_text()\n            await websocket.send_text(f"Echo: {data}")\n    except WebSocketDisconnect as e:\n        print(f"Disconnected: code={e.code}, reason={e.reason}")\n```\n\nThis would help with logging and reconnection strategies.' },
+    { number: 12344, title: 'TypeError when using Union types in response_model', author: 'alice_dev', state: 'open', labels: ['bug', 'type-system'], comments: 5, updated_at: '2026-07-11T09:15:00Z', classification: { category: 'bug', confidence: 0.97, reason: '标题和内容描述了一个明确的运行时错误，包含错误堆栈和复现步骤', suggested_action: '标记为 bug，高优先级处理，需要检查 Union 类型在 response_model 解析中的边界情况', signals: ['TypeError 运行时错误', '有完整复现步骤', '涉及 Pydantic 序列化'] }, body: '## Bug Report\n\nWhen using `Union[ModelA, ModelB]` as `response_model`, the server throws a `TypeError`.\n\n**To reproduce:**\n```python\nfrom typing import Union\nfrom fastapi import FastAPI\nfrom pydantic import BaseModel\n\nclass ModelA(BaseModel):\n    name: str\n\nclass ModelB(BaseModel):\n    age: int\n\napp = FastAPI()\n\n@app.get("/items", response_model=Union[ModelA, ModelB])\nasync def get_items():\n    return {"name": "test"}\n```\n\n**Error:** `TypeError: issubclass() arg 1 must be a class`' },
+    { number: 12343, title: 'How to implement rate limiting with FastAPI?', author: 'newbie_coder', state: 'open', labels: ['question'], comments: 12, updated_at: '2026-07-10T16:45:00Z', classification: { category: 'question', confidence: 0.91, reason: '标题为疑问句式，内容为询问实现方法，没有 Bug 报告或功能请求特征', suggested_action: '标记为 question，引导用户查阅 slowapi 或 middleware 相关文档', signals: ['疑问句式标题', '询问实现方案', '无错误报告特征'] }, body: 'Hi! I\'m new to FastAPI and I want to add rate limiting to my API. What\'s the best approach? Should I use middleware, dependencies, or an external library like slowapi? Any examples would be greatly appreciated.' },
+    { number: 12342, title: 'Dependency injection performance regression in v0.110', author: 'perf_watcher', state: 'open', labels: ['bug', 'performance'], comments: 15, updated_at: '2026-07-09T11:20:00Z', classification: { category: 'bug', confidence: 0.95, reason: '指明了版本回归和性能退化，附有基准测试数据对比', suggested_action: '标记为 bug + performance，需要排查依赖注入解析中的回归引入点', signals: ['版本回归报告', '性能基准数据', '可重复验证'] }, body: '## Performance Regression\n\nSince upgrading to v0.110, I\'ve noticed a ~40% increase in request latency for endpoints with heavy dependency injection.\n\n**Benchmark (1000 requests):**\n- v0.109: 230ms avg\n- v0.110: 322ms avg\n\nI suspect the new dependency resolution algorithm is doing redundant work for deeply nested dependencies.' },
+    { number: 12341, title: 'OAuth2 scopes: need more practical examples', author: 'docs_seeker', state: 'open', labels: ['enhancement', 'documentation'], comments: 3, updated_at: '2026-07-08T08:00:00Z', classification: { category: 'feature_request', confidence: 0.87, reason: '请求增加文档示例，属于功能增强类请求', suggested_action: '标记为 enhancement，评估文档补充范围，优先补充 OAuth2 作用域的实践场景', signals: ['文档补充请求', '实践场景需求', '非错误报告'] }, body: 'The current documentation for OAuth2 scopes is quite minimal. It would be really helpful to have more practical examples showing:\n1. How to define custom scopes\n2. How to check multiple scopes in one endpoint\n3. How to handle scope inheritance' },
+    { number: 12340, title: 'Missing type hints for internal helper functions', author: 'type_lover', state: 'open', labels: ['enhancement'], comments: 2, updated_at: '2026-07-07T15:30:00Z', classification: { category: 'info_needed', confidence: 0.78, reason: '描述不够具体，未指明具体哪些函数缺少类型提示，需要进一步信息', suggested_action: '标记为 info_needed，请求用户提供具体的函数名和位置', signals: ['描述模糊', '缺少具体位置', '需补充信息'] }, body: 'Some internal helper functions don\'t have proper type hints yet. It would be nice to add them for better IDE support.' },
+    { number: 12339, title: 'Custom exception handler not working with WebSocket routes', author: 'bug_hunter99', state: 'open', labels: ['bug', 'websocket'], comments: 7, updated_at: '2026-07-06T20:10:00Z', classification: { category: 'bug', confidence: 0.96, reason: '明确描述异常处理器不工作的问题，包含复现步骤和预期行为对比', suggested_action: '标记为 bug，检查 WebSocket 路由的异常处理链路是否与 HTTP 路由一致', signals: ['异常处理器不触发', 'WebSocket 场景', '有最小复现示例'] }, body: '## Bug Report\n\nCustom exception handlers registered via `@app.exception_handler()` work fine for HTTP routes but are not being called for WebSocket routes.\n\n```python\n@app.websocket("/ws")\nasync def ws(websocket: WebSocket):\n    raise CustomException("test")\n```\n\nThe exception is never caught by the custom handler.' },
+    { number: 12338, title: 'Support for Pydantic V2 validators in request body', author: 'pydantic_fan', state: 'open', labels: ['enhancement'], comments: 10, updated_at: '2026-07-05T12:00:00Z', classification: { category: 'feature_request', confidence: 0.92, reason: '提出了明确的兼容性功能需求，指向 Pydantic V2 的新 API', suggested_action: '标记为 enhancement，评估与 Pydantic V2 验证器 API 的兼容性', signals: ['Pydantic V2 兼容性', '新验证器 API', '社区需求'] }, body: 'Now that Pydantic V2 is widely adopted, FastAPI should support the new `@field_validator` and `@model_validator` decorators natively in request body validation. Currently, users have to use the old `@validator` syntax which is deprecated in V2.' },
+  ],
+  pullRequests: [
+    { number: 7432, title: '✨ Add WebSocket ping/pong keepalive', state: 'open', author: 'tiangolo', html_url: '#' },
+    { number: 7418, title: '🐛 Fix OpenAPI schema generation for recursive models', state: 'merged', author: 'maintainer_bot', html_url: '#' },
+    { number: 7405, title: '📝 Update deployment docs with Docker Compose', state: 'merged', author: 'docs_contributor', html_url: '#' },
+    { number: 7399, title: '⚡ Optimize dependency caching in DI resolver', state: 'open', author: 'perf_engineer', html_url: '#' },
+    { number: 7388, title: '✅ Add test coverage for WebSocket exception handlers', state: 'merged', author: 'qa_bot', html_url: '#' },
+    { number: 7372, title: '🔧 Bump pydantic to v2.8 in dependencies', state: 'merged', author: 'dependabot', html_url: '#' },
+    { number: 7365, title: '✨ Add background task retry mechanism', state: 'open', author: 'contributor_42', html_url: '#' },
+    { number: 7351, title: '📱 Improve mobile responsiveness of Swagger UI', state: 'merged', author: 'ui_designer', html_url: '#' },
+  ],
+  commits: [
+    { sha: 'a1b2c3d', message: 'Fix dependency injection edge case with nested dependencies', author: 'tiangolo', html_url: '#' },
+    { sha: 'e4f5g6h', message: 'Update OpenAPI schema version to 3.1.0', author: 'maintainer_bot', html_url: '#' },
+    { sha: 'i7j8k9l', message: 'Add test for WebSocket disconnect handling', author: 'qa_bot', html_url: '#' },
+    { sha: 'm0n1o2p', message: 'Refactor routing module for better maintainability', author: 'tiangolo', html_url: '#' },
+    { sha: 'q3r4s5t', message: 'Bump starlette dependency to v0.38', author: 'dependabot', html_url: '#' },
+    { sha: 'u6v7w8x', message: 'Improve type hints for public API surface', author: 'type_lover', html_url: '#' },
+    { sha: 'y9z0a1b', message: 'Document breaking changes in v0.112 release', author: 'docs_bot', html_url: '#' },
+    { sha: 'c2d3e4f', message: 'Fix memory leak in long-lived WebSocket connections', author: 'perf_watcher', html_url: '#' },
+  ],
+  webhookEvents: [
+    { event_id: 'evt_001', event_type: 'issues', action: 'opened', repository: 'fastapi/fastapi', issue_number: 12345, classification: { category: 'feature_request', confidence: 0.94, reason: '新功能请求：WebSocket disconnect reason' }, received_at: '2026-07-12T14:32:00Z' },
+    { event_id: 'evt_002', event_type: 'issues', action: 'opened', repository: 'fastapi/fastapi', issue_number: 12344, classification: { category: 'bug', confidence: 0.97, reason: 'Bug 报告：Union types response_model TypeError' }, received_at: '2026-07-11T09:17:00Z' },
+    { event_id: 'evt_003', event_type: 'issues', action: 'opened', repository: 'fastapi/fastapi', issue_number: 12343, classification: { category: 'question', confidence: 0.91, reason: '技术咨询：rate limiting 实现' }, received_at: '2026-07-10T16:47:00Z' },
+    { event_id: 'evt_004', event_type: 'issues', action: 'opened', repository: 'fastapi/fastapi', issue_number: 12342, classification: { category: 'bug', confidence: 0.95, reason: '性能回归报告：Dependency injection v0.110' }, received_at: '2026-07-09T11:22:00Z' },
+    { event_id: 'evt_005', event_type: 'issues', action: 'opened', repository: 'fastapi/fastapi', issue_number: 12339, classification: { category: 'bug', confidence: 0.96, reason: 'Bug 报告：WebSocket exception handler' }, received_at: '2026-07-06T20:12:00Z' },
+    { event_id: 'evt_006', event_type: 'pull_request', action: 'opened', repository: 'fastapi/fastapi', issue_number: 7432, classification: null, received_at: '2026-07-05T10:00:00Z' },
+    { event_id: 'evt_007', event_type: 'issues', action: 'opened', repository: 'fastapi/fastapi', issue_number: 12338, classification: { category: 'feature_request', confidence: 0.92, reason: '功能需求：Pydantic V2 validators 支持' }, received_at: '2026-07-04T08:30:00Z' },
+    { event_id: 'evt_008', event_type: 'issues', action: 'opened', repository: 'fastapi/fastapi', issue_number: 12340, classification: { category: 'info_needed', confidence: 0.78, reason: '信息不完整：缺少具体文件位置' }, received_at: '2026-07-03T15:35:00Z' },
+  ],
+  // File tree with dependency info
+  fileTree: {
+    name: 'fastapi', type: 'dir',
+    children: [
+      { name: 'fastapi', type: 'dir', children: [
+        { name: '__init__.py', type: 'file', category: 'source_code', size: 1240, deps: { imports: ['fastapi/main', 'fastapi/routing'], externals: ['typing'] }, reverseDeps: [] },
+        { name: 'main.py', type: 'file', category: 'source_code', size: 45820, deps: { imports: ['fastapi/routing', 'fastapi/dependencies', 'fastapi/params', 'fastapi/responses'], externals: ['starlette.applications', 'pydantic', 'typing', 'asyncio'] }, reverseDeps: ['fastapi/__init__'] },
+        { name: 'routing.py', type: 'file', category: 'source_code', size: 32150, deps: { imports: ['fastapi/dependencies', 'fastapi/params'], externals: ['starlette.routing', 'pydantic', 'typing'] }, reverseDeps: ['fastapi/main', 'fastapi/__init__'] },
+        { name: 'dependencies.py', type: 'file', category: 'source_code', size: 28900, deps: { imports: ['fastapi/params'], externals: ['starlette.requests', 'pydantic', 'typing', 'inspect'] }, reverseDeps: ['fastapi/main', 'fastapi/routing'] },
+        { name: 'params.py', type: 'file', category: 'source_code', size: 18670, deps: { imports: [], externals: ['pydantic.fields', 'typing', 'enum'] }, reverseDeps: ['fastapi/main', 'fastapi/routing', 'fastapi/dependencies'] },
+        { name: 'responses.py', type: 'file', category: 'source_code', size: 15430, deps: { imports: [], externals: ['starlette.responses', 'typing', 'json'] }, reverseDeps: ['fastapi/main'] },
+        { name: 'requests.py', type: 'file', category: 'source_code', size: 8920, deps: { imports: [], externals: ['starlette.requests', 'pydantic', 'typing'] }, reverseDeps: [] },
+        { name: 'exception_handlers.py', type: 'file', category: 'source_code', size: 7650, deps: { imports: [], externals: ['starlette.requests', 'starlette.responses', 'typing'] }, reverseDeps: [] },
+        { name: 'encoders.py', type: 'file', category: 'source_code', size: 12340, deps: { imports: [], externals: ['pydantic', 'datetime', 'json', 'typing', 'uuid'] }, reverseDeps: [] },
+        { name: 'websockets.py', type: 'file', category: 'source_code', size: 6780, deps: { imports: ['fastapi/dependencies'], externals: ['starlette.websockets', 'typing'] }, reverseDeps: [] },
+        { name: 'testclient.py', type: 'file', category: 'source_code', size: 4320, deps: { imports: ['fastapi/main'], externals: ['starlette.testclient', 'typing'] }, reverseDeps: [] },
+        { name: 'middleware', type: 'dir', children: [
+          { name: '__init__.py', type: 'file', category: 'source_code', size: 120, deps: { imports: ['fastapi/middleware/cors', 'fastapi/middleware/trustedhost'], externals: [] }, reverseDeps: [] },
+          { name: 'cors.py', type: 'file', category: 'source_code', size: 8910, deps: { imports: [], externals: ['starlette.middleware.cors', 'typing'] }, reverseDeps: ['fastapi/middleware/__init__'] },
+          { name: 'trustedhost.py', type: 'file', category: 'source_code', size: 5340, deps: { imports: [], externals: ['starlette.middleware.base', 'typing'] }, reverseDeps: ['fastapi/middleware/__init__'] },
+        ]},
+        { name: 'security', type: 'dir', children: [
+          { name: '__init__.py', type: 'file', category: 'source_code', size: 210, deps: { imports: ['fastapi/security/http', 'fastapi/security/oauth2', 'fastapi/security/open_id_connect_url'], externals: [] }, reverseDeps: [] },
+          { name: 'base.py', type: 'file', category: 'source_code', size: 3450, deps: { imports: [], externals: ['fastapi', 'typing'] }, reverseDeps: ['fastapi/security/http', 'fastapi/security/oauth2'] },
+          { name: 'http.py', type: 'file', category: 'source_code', size: 5670, deps: { imports: ['fastapi/security/base'], externals: ['starlette.requests', 'pydantic', 'typing'] }, reverseDeps: ['fastapi/security/__init__'] },
+          { name: 'oauth2.py', type: 'file', category: 'source_code', size: 12340, deps: { imports: ['fastapi/security/base'], externals: ['starlette.requests', 'pydantic', 'typing', 'base64'] }, reverseDeps: ['fastapi/security/__init__'] },
+          { name: 'open_id_connect_url.py', type: 'file', category: 'source_code', size: 4560, deps: { imports: ['fastapi/security/base'], externals: ['starlette.requests', 'pydantic', 'typing'] }, reverseDeps: ['fastapi/security/__init__'] },
+        ]},
+        { name: 'openapi', type: 'dir', children: [
+          { name: '__init__.py', type: 'file', category: 'source_code', size: 180, deps: { imports: ['fastapi/openapi/models', 'fastapi/openapi/utils'], externals: [] }, reverseDeps: [] },
+          { name: 'models.py', type: 'file', category: 'source_code', size: 28450, deps: { imports: [], externals: ['pydantic', 'typing', 'enum'] }, reverseDeps: ['fastapi/openapi/__init__', 'fastapi/openapi/utils'] },
+          { name: 'utils.py', type: 'file', category: 'source_code', size: 32100, deps: { imports: ['fastapi/openapi/models', 'fastapi/routing', 'fastapi/dependencies', 'fastapi/params'], externals: ['pydantic', 'typing'] }, reverseDeps: ['fastapi/openapi/__init__'] },
+        ]},
+      ]},
+      { name: 'tests', type: 'dir', children: [
+        { name: 'test_main.py', type: 'file', category: 'tests', size: 8450, deps: { imports: ['fastapi/main', 'fastapi/dependencies'], externals: ['starlette.testclient', 'pytest', 'pydantic'] }, reverseDeps: [] },
+        { name: 'test_routing.py', type: 'file', category: 'tests', size: 12300, deps: { imports: ['fastapi/routing', 'fastapi/dependencies'], externals: ['pytest', 'starlette.testclient'] }, reverseDeps: [] },
+        { name: 'test_dependency.py', type: 'file', category: 'tests', size: 9800, deps: { imports: ['fastapi/dependencies', 'fastapi/params'], externals: ['pytest', 'pydantic'] }, reverseDeps: [] },
+        { name: 'test_security', type: 'dir', children: [
+          { name: 'test_oauth2.py', type: 'file', category: 'tests', size: 6780, deps: { imports: ['fastapi/security/oauth2', 'fastapi/security/base'], externals: ['pytest', 'starlette.testclient'] }, reverseDeps: [] },
+          { name: 'test_http.py', type: 'file', category: 'tests', size: 4560, deps: { imports: ['fastapi/security/http'], externals: ['pytest', 'starlette.testclient'] }, reverseDeps: [] },
+        ]},
+        { name: 'test_websocket.py', type: 'file', category: 'tests', size: 5430, deps: { imports: ['fastapi/websockets'], externals: ['pytest', 'starlette.testclient'] }, reverseDeps: [] },
+        { name: 'test_exception_handlers.py', type: 'file', category: 'tests', size: 3890, deps: { imports: ['fastapi/exception_handlers'], externals: ['pytest', 'starlette.testclient'] }, reverseDeps: [] },
+      ]},
+      { name: 'docs', type: 'dir', children: [
+        { name: 'en', type: 'dir', children: [
+          { name: 'docs', type: 'dir', children: [
+            { name: 'index.md', type: 'file', category: 'documentation', size: 2340, deps: { imports: [], externals: [] }, reverseDeps: [] },
+            { name: 'features.md', type: 'file', category: 'documentation', size: 1890, deps: { imports: [], externals: [] }, reverseDeps: [] },
+            { name: 'tutorial', type: 'dir', children: [
+              { name: 'first-steps.md', type: 'file', category: 'documentation', size: 1560, deps: { imports: [], externals: [] }, reverseDeps: [] },
+              { name: 'path-params.md', type: 'file', category: 'documentation', size: 2100, deps: { imports: [], externals: [] }, reverseDeps: [] },
+              { name: 'query-params.md', type: 'file', category: 'documentation', size: 1780, deps: { imports: [], externals: [] }, reverseDeps: [] },
+              { name: 'body.md', type: 'file', category: 'documentation', size: 3450, deps: { imports: [], externals: [] }, reverseDeps: [] },
+            ]},
+          ]},
+        ]},
+      ]},
+      { name: 'pyproject.toml', type: 'file', category: 'dependency', size: 2340, deps: { imports: [], externals: [] }, reverseDeps: [] },
+      { name: 'README.md', type: 'file', category: 'documentation', size: 5680, deps: { imports: [], externals: [] }, reverseDeps: [] },
+      { name: 'LICENSE', type: 'file', category: 'documentation', size: 1200, deps: { imports: [], externals: [] }, reverseDeps: [] },
+      { name: 'mkdocs.yml', type: 'file', category: 'configuration', size: 890, deps: { imports: [], externals: [] }, reverseDeps: [] },
+      { name: '.github', type: 'dir', children: [
+        { name: 'workflows', type: 'dir', children: [
+          { name: 'build.yml', type: 'file', category: 'ci_cd', size: 2340, deps: { imports: [], externals: [] }, reverseDeps: [] },
+          { name: 'test.yml', type: 'file', category: 'ci_cd', size: 1890, deps: { imports: [], externals: [] }, reverseDeps: [] },
+          { name: 'publish.yml', type: 'file', category: 'ci_cd', size: 1560, deps: { imports: [], externals: [] }, reverseDeps: [] },
+        ]},
+      ]},
+    ]
+  },
+  // Chat messages
+  chatMessages: [
+    { role: 'assistant', content: '仓库已同步！你可以问我关于 **fastapi/fastapi** 的任何问题：\n\n- 📁 项目结构\n- 🐛 Issue 分类统计\n- 📄 文件依赖关系\n- 🔧 测试文件位置\n- 📚 README 内容', toolCalls: [], citations: [] },
+    { role: 'user', content: '这个项目的测试文件在哪里？' },
+    { role: 'assistant', content: '测试文件主要集中在 `tests/` 目录下，共有 **108 个测试文件**。\n\n主要测试模块：\n- `tests/test_main.py` — 主应用测试\n- `tests/test_routing.py` — 路由测试\n- `tests/test_dependency.py` — 依赖注入测试\n- `tests/test_security/` — 安全模块测试\n- `tests/test_websocket.py` — WebSocket 测试', toolCalls: [{name:'search_files', args:{pattern:'tests/'}, summary:'搜索 tests 目录下的文件'}], citations: [{type:'file', label:'tests/test_main.py', url:null}] },
+  ],
+};
+
+// ===================== STATE =====================
+let selectedFilePath = null;
+
+// ===================== UTILITY =====================
+function formatCategory(cat) {
+  const labels = { bug:'bug', feature_request:'feature request', question:'question', info_needed:'info needed', enhancement:'enhancement', source_code:'源码', tests:'测试', documentation:'文档', configuration:'配置', ci_cd:'CI/CD', dependency:'依赖配置', build:'构建', assets:'静态资源', data:'数据', other:'其他' };
+  return labels[cat] || cat.replace(/_/g,' ');
+}
+
+function formatDate(d) {
+  const dt = new Date(d);
+  return dt.toLocaleDateString('zh-CN',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+
+function timeAgo(d) {
+  const diff = Date.now() - new Date(d).getTime();
+  const m = Math.floor(diff/60000);
+  if(m<1) return '刚刚';
+  if(m<60) return m+'分钟前';
+  const h = Math.floor(m/60);
+  if(h<24) return h+'小时前';
+  return Math.floor(h/24)+'天前';
+}
+
+// SVG icon helpers
+function iconSvg(path,size=16){return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;}
+
+// ===================== RENDER: Dashboard =====================
+function renderDashboard() {
+  // Metrics
+  const metrics = [
+    { icon: '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>', label: 'Stars', value: MOCK.stats.stars.toLocaleString() },
+    { icon: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>', label: 'Forks', value: MOCK.stats.forks.toLocaleString() },
+    { icon: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>', label: 'Open Issues', value: MOCK.stats.open_issues.toLocaleString() },
+    { icon: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>', label: 'Indexed Files', value: MOCK.stats.files.toLocaleString() },
+  ];
+  document.getElementById('metricsContainer').innerHTML = metrics.map(m => `
+    <article class="metric">
+      <span class="metric-icon">${iconSvg(m.icon)}</span>
+      <div><p>${m.label}</p><strong>${m.value}</strong></div>
+    </article>
+  `).join('');
+
+  // Issue categories
+  const ic = document.getElementById('issueCategories');
+  const totalI = MOCK.issueCategories.reduce((s,c)=>s+c.count,0);
+  ic.innerHTML = MOCK.issueCategories.map(c => {
+    const pct = Math.round(c.count/totalI*100);
+    return `<div class="bar-row"><div><span><span class="badge ${c.category}">${formatCategory(c.category)}</span></span><span>${c.count}</span></div><div class="bar-track"><span style="width:${Math.max(pct,4)}%"></span></div></div>`;
+  }).join('');
+
+  // File categories
+  const fc = document.getElementById('fileCategories');
+  const totalF = MOCK.fileCategories.reduce((s,c)=>s+c.count,0);
+  fc.innerHTML = MOCK.fileCategories.map(c => {
+    const pct = Math.round(c.count/totalF*100);
+    return `<div class="bar-row"><div><span>${formatCategory(c.category)}</span><span>${c.count}</span></div><div class="bar-track"><span style="width:${Math.max(pct,4)}%"></span></div></div>`;
+  }).join('');
+
+  // Language bars
+  const lb = document.getElementById('languageBars');
+  const langEntries = Object.entries(MOCK.languageBytes).sort((a,b)=>b[1]-a[1]);
+  const totalL = langEntries.reduce((s, [,v])=>s+v,0);
+  lb.innerHTML = langEntries.map(([name,bytes]) => {
+    const pct = Math.round(bytes/totalL*100);
+    return `<div class="bar-row"><div><span>${name}</span><span>${(bytes/1024/1024).toFixed(1)} MB</span></div><div class="bar-track"><span style="width:${Math.max(pct,4)}%"></span></div></div>`;
+  }).join('');
+
+  // Project Analysis
+  document.getElementById('projectAnalysisContainer').innerHTML = `
+    <div class="panel">
+      <h3>项目结构概览</h3>
+      <div class="analysis-layout">
+        <div class="analysis-summary">
+          <p class="analysis-kicker">启发式规则解析 · 非 AI 原型</p>
+          <h4>Python 后端或工具库项目</h4>
+          <p class="analysis-description" style="font-size:13px">基于 GitHub 同步到的目录树、文件类型、依赖文件和 README 信息生成项目结构视图。</p>
+          <p class="analysis-basis">当前基于 523 个已同步文件样本。</p>
+          <div class="analysis-chips">
+            <span>286 个源码文件</span>
+            <span>108 个测试文件</span>
+            <span>24 个依赖配置文件</span>
+            <span>67 个文档文件</span>
+          </div>
+        </div>
+        <div class="mindmap">
+          <div class="mindmap-center"><strong>fastapi</strong><span>结构概览</span></div>
+          <div class="mindmap-node">${iconSvg('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',16)}<span>源码模块</span><strong>286</strong></div>
+          <div class="mindmap-node">${iconSvg('<path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/>',16)}<span>依赖配置</span><strong>46</strong></div>
+          <div class="mindmap-node">${iconSvg('<path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.04-2.44V4.5A2.5 2.5 0 0 1 7.5 2a2.5 2.5 0 0 1 2 1.06l.45.6ZM3.5 6H3m0 4h.5m-.5 8h.5M16 4h2m-2 4h3m-3 4h4m-4 4h3M9 6h.5M8 10h1m-1 8h1"/>',16)}<span>测试</span><strong>108</strong></div>
+          <div class="mindmap-node">${iconSvg('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>',16)}<span>文档</span><strong>67</strong></div>
+          <div class="mindmap-node">${iconSvg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>',16)}<span>CI/CD</span><strong>16</strong></div>
+        </div>
+      </div>
+      <div class="analysis-grid">
+        <article class="analysis-card clickable" onclick="showAnalysisDetail('dirs')" tabindex="0" onkeydown="if(event.key==='Enter')showAnalysisDetail('dirs')"><h4>${iconSvg('<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>',16)}主要目录</h4><ul>
+          <li>fastapi/ · 18 个文件 · 源码</li><li>tests/ · 8 个文件 · 测试</li><li>docs/ · 6 个文件 · 文档</li><li>.github/workflows/ · 3 个文件 · CI/CD</li>
+        </ul><span class="card-click-hint">👆 点击查看详细目录结构</span></article>
+        <article class="analysis-card clickable" onclick="showAnalysisDetail('deps')" tabindex="0" onkeydown="if(event.key==='Enter')showAnalysisDetail('deps')"><h4>${iconSvg('<path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',16)}依赖文件</h4><ul>
+          <li>pyproject.toml · Python 项目元数据</li><li>requirements.txt · pip 依赖列表</li>
+        </ul><span class="card-click-hint">👆 点击查看完整依赖详情</span></article>
+        <article class="analysis-card clickable" onclick="showAnalysisDetail('entries')" tabindex="0" onkeydown="if(event.key==='Enter')showAnalysisDetail('entries')"><h4>${iconSvg('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',16)}入口文件候选</h4><ul>
+          <li>fastapi/main.py · 主应用入口</li><li>fastapi/app.py · 应用工厂</li>
+        </ul><span class="card-click-hint">👆 点击查看入口分析详情</span></article>
+        <article class="analysis-card clickable" onclick="showAnalysisDetail('tests_docs')" tabindex="0" onkeydown="if(event.key==='Enter')showAnalysisDetail('tests_docs')"><h4>${iconSvg('<path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.04-2.44V4.5A2.5 2.5 0 0 1 7.5 2a2.5 2.5 0 0 1 2 1.06l.45.6ZM3.5 6H3m0 4h.5m-.5 8h.5M16 4h2m-2 4h3m-3 4h4m-4 4h3M9 6h.5M8 10h1m-1 8h1"/>',16)}测试与文档</h4><ul>
+          <li>测试文件：108 个 · 7 个测试模块</li><li>文档文件：67 个 · 中英文文档</li><li>配置文件：22 个 · CI/CD 等</li>
+        </ul><span class="card-click-hint">👆 点击查看详细分析</span></article>
+      </div>
+
+      <!-- Module Dependency Graph -->
+      <div class="dep-graph-container">
+        <h4>${iconSvg('<path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>',14)} 模块依赖关系图 <span style="font-size:11px;color:#6a747e;font-weight:400">— 核心模块之间的导入依赖关系</span></h4>
+        <div id="moduleDepGraph"></div>
+      </div>
+    </div>`;
+
+  // Issues (clickable)
+  const isc = document.getElementById('issuesContainer');
+  isc.innerHTML = MOCK.issues.map((issue, idx) => `
+    <div class="table-row" onclick="showIssueDetail(${idx})" tabindex="0" role="button" onkeydown="if(event.key==='Enter')showIssueDetail(${idx})">
+      <span class="number">#${issue.number}</span>
+      <span class="grow">${issue.title}</span>
+      <span class="badge ${issue.classification.category}">${formatCategory(issue.classification.category)}</span>
+      <span class="confidence">${Math.round(issue.classification.confidence*100)}%</span>
+    </div>
+  `).join('');
+
+  // PRs
+  const prc = document.getElementById('prContainer');
+  prc.innerHTML = MOCK.pullRequests.slice(0,8).map(pr => `
+    <a class="compact-list-item" href="${pr.html_url}" target="_blank" style="display:grid;gap:4px;border:1px solid #e5ebf0;border-radius:7px;padding:10px 12px;text-decoration:none;color:inherit;transition:background .12s,border-color .12s" onmouseover="this.style.borderColor='#a9bfd5';this.style.background='#f9fbfd'" onmouseout="this.style.borderColor='#e5ebf0';this.style.background=''">
+      <strong style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">#${pr.number} ${pr.title}</strong>
+      <span style="color:#6a747e;font-size:12px">${pr.state} · ${pr.author}</span>
+    </a>
+  `).join('');
+
+  // Commits
+  const cc = document.getElementById('commitContainer');
+  cc.innerHTML = MOCK.commits.slice(0,8).map(c => `
+    <a class="compact-list-item" href="${c.html_url}" target="_blank" style="display:grid;gap:4px;border:1px solid #e5ebf0;border-radius:7px;padding:10px 12px;text-decoration:none;color:inherit;transition:background .12s,border-color .12s" onmouseover="this.style.borderColor='#a9bfd5';this.style.background='#f9fbfd'" onmouseout="this.style.borderColor='#e5ebf0';this.style.background=''">
+      <strong style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.message}</strong>
+      <span style="color:#6a747e;font-size:12px">${c.sha.substring(0,7)} · ${c.author}</span>
+    </a>
+  `).join('');
+}
+
+// ===================== RENDER: Dependency Tree =====================
+function renderFileTree() {
+  const container = document.getElementById('fileTree');
+  container.innerHTML = buildTreeNode(MOCK.fileTree, '', true);
+}
+
+function buildTreeNode(node, path, isRoot) {
+  if (!node) return '';
+  const fullPath = path ? path + '/' + node.name : node.name;
+  if (node.type === 'dir' && node.children) {
+    const isExpanded = isRoot || fullPath === 'fastapi/fastapi';
+    const childrenHtml = node.children.map(child => buildTreeNode(child, fullPath, false)).join('');
+    const hasChildren = node.children.length > 0;
+    const fileCount = countFiles(node);
+    return `<div class="tree-node">
+      <div class="tree-row ${selectedFilePath === fullPath ? 'selected' : ''}" onclick="toggleTreeNode('${fullPath}')">
+        <span class="tree-arrow ${isExpanded ? 'expanded' : ''}">${hasChildren ? '▶' : ''}</span>
+        <span class="tree-icon">${hasChildren ? (isRoot ? '📦' : '📁') : '📄'}</span>
+        <span class="tree-name"><strong>${node.name}</strong></span>
+        ${fileCount > 0 ? `<span class="tree-file-count">${fileCount} 个文件</span>` : ''}
+      </div>
+      ${hasChildren ? `<div class="tree-node-children" style="display:${isExpanded ? 'block' : 'none'}">${childrenHtml}</div>` : ''}
+    </div>`;
+  } else {
+    // File node
+    const dotClass = node.category || 'source_code';
+    return `<div class="tree-node">
+      <div class="tree-row ${selectedFilePath === fullPath ? 'selected' : ''}" onclick="selectFile('${fullPath}')" onmouseenter="showTooltip(event,'${node.category||''}','${(node.size/1024).toFixed(1)}KB')" onmouseleave="hideTooltip()">
+        <span class="tree-arrow"></span>
+        <span class="tree-icon"><span class="tree-dot ${dotClass}"></span></span>
+        <span class="tree-name">${node.name}</span>
+        <span class="tree-file-count">${formatCategory(node.category)}</span>
+      </div>
+    </div>`;
+  }
+}
+
+function countFiles(node) {
+  if (!node.children) return 0;
+  let count = 0;
+  for (const child of node.children) {
+    if (child.type === 'dir') count += countFiles(child);
+    else count++;
+  }
+  return count;
+}
+
+function toggleTreeNode(path) {
+  const rows = document.querySelectorAll('#fileTree .tree-row');
+  for (const row of rows) {
+    if (row.querySelector('.tree-name')?.textContent?.trim() === path.split('/').pop() && row.closest('.tree-node')?.querySelector('.tree-node-children')) {
+      const children = row.closest('.tree-node').querySelector('.tree-node-children');
+      const arrow = row.querySelector('.tree-arrow');
+      if (children) {
+        const isVisible = children.style.display !== 'none';
+        children.style.display = isVisible ? 'none' : 'block';
+        if (arrow) arrow.classList.toggle('expanded', !isVisible);
+      }
+    }
+  }
+}
+
+function selectFile(path) {
+  selectedFilePath = path;
+  // Update selection UI
+  document.querySelectorAll('#fileTree .tree-row.selected').forEach(el => el.classList.remove('selected'));
+  const rows = document.querySelectorAll('#fileTree .tree-row');
+  for (const row of rows) {
+    const name = row.querySelector('.tree-name')?.textContent?.trim();
+    const parentPath = getParentPath(path);
+    if (name === path.split('/').pop() && path.endsWith(name)) {
+      row.classList.add('selected');
+    }
+  }
+  showDependencyDetail(path);
+}
+
+function getParentPath(path) {
+  const parts = path.split('/');
+  parts.pop();
+  return parts.join('/') || '';
+}
+
+function findFileNode(path, tree) {
+  const parts = path.split('/');
+  let node = tree;
+  for (const part of parts) {
+    if (node.children) {
+      node = node.children.find(c => c.name === part);
+      if (!node) return null;
+    } else if (node.name === part) {
+      return node;
+    } else return null;
+  }
+  return node;
+}
+
+function resolveDepPath(dep, contextPath) {
+  // Try to resolve relative imports to absolute paths
+  // Simple heuristic: dep like "fastapi/routing" maps to the tree node
+  const parts = dep.split('/');
+  if (parts[0] === 'fastapi') return dep; // Already absolute in our mock
+  // Could be relative, but for our mock all deps use absolute-ish paths
+  return dep;
+}
+
+function showDependencyDetail(path) {
+  const pane = document.getElementById('depDetail');
+  const fullPath = path.startsWith('fastapi/') ? path : 'fastapi/' + path;
+  // Find node
+  const treeRoot = MOCK.fileTree;
+  const node = findFileNode(fullPath, treeRoot);
+  if (!node || !node.deps) {
+    pane.innerHTML = `<div class="empty-state"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>该文件无依赖信息</span></div>`;
+    return;
+  }
+
+  const { deps, reverseDeps, category, size } = node;
+
+  // Build imports list
+  const importsHtml = [...(deps.imports || []), ...(deps.externals || [])].map(dep => {
+    const isExternal = (deps.externals || []).includes(dep);
+    const internalMatch = (deps.imports || []).includes(dep);
+    const resolved = resolveDepPath(dep, fullPath);
+    const existsInTree = internalMatch;
+    const fileNode = existsInTree ? findFileNode(resolved, treeRoot) : null;
+    const fileSize = fileNode && fileNode.size ? ` · ${(fileNode.size/1024).toFixed(1)} KB` : '';
+    const cat = fileNode && fileNode.category ? formatCategory(fileNode.category) : '';
+
+    if (isExternal) {
+      return `<div class="dep-item"><span class="tree-dot" style="background:#8b5cf6;width:6px;height:6px;border-radius:50%;flex-shrink:0"></span><span class="dep-target">${dep}</span><span class="dep-badge">外部包</span></div>`;
+    } else if (existsInTree) {
+      return `<div class="dep-item" onclick="selectFile('${resolved}')"><span class="tree-dot ${fileNode?.category||'source_code'}" style="width:6px;height:6px;border-radius:50%;flex-shrink:0"></span><span class="dep-internal">${dep}</span><span class="dep-detail">${cat}${fileSize}</span></div>`;
+    } else {
+      return `<div class="dep-item"><span class="tree-dot" style="background:#9aa6b2;width:6px;height:6px;border-radius:50%;flex-shrink:0"></span><span class="dep-target">${dep}</span><span class="dep-badge">未知</span></div>`;
+    }
+  }).join('');
+
+  // Build reverse deps list
+  const reverseHtml = (reverseDeps || []).map(dep => {
+    const resolved = resolveDepPath(dep, fullPath);
+    const fileNode = findFileNode(resolved, treeRoot);
+    const cat = fileNode && fileNode.category ? formatCategory(fileNode.category) : '';
+    return `<div class="dep-item" onclick="selectFile('${resolved}')"><span class="tree-dot ${fileNode?.category||'source_code'}" style="width:6px;height:6px;border-radius:50%;flex-shrink:0"></span><span class="dep-internal">${dep}</span><span class="dep-detail">${cat}</span></div>`;
+  }).join('');
+
+  pane.innerHTML = `
+    <div class="dep-detail-header">
+      <h4>${iconSvg('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',16)} ${node.name}</h4>
+      <div class="dep-path">${fullPath} · <span class="badge" style="display:inline-block;padding:1px 6px;font-size:10px">${formatCategory(category)}</span> · ${(size/1024).toFixed(1)} KB</div>
+    </div>
+    <div class="dep-section">
+      <h5>${iconSvg('<path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>',14)} 导入依赖 (${(deps.imports||[]).length + (deps.externals||[]).length})</h5>
+      <div class="dep-list">${importsHtml || '<span style="color:#6a747e;font-size:12px">无导入依赖</span>'}</div>
+    </div>
+    <div class="dep-section">
+      <h5>${iconSvg('<path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/>',14)} 被依赖 (${(reverseDeps||[]).length})</h5>
+      <div class="dep-list">${reverseHtml || '<span style="color:#6a747e;font-size:12px">无其他文件导入此文件</span>'}</div>
+    </div>
+  `;
+}
+
+function showTooltip(e, category, size) {
+  const tooltip = document.getElementById('treeTooltip');
+  tooltip.textContent = `分类: ${formatCategory(category)} · ${size}`;
+  tooltip.style.display = 'block';
+  tooltip.style.left = (e.clientX + 12) + 'px';
+  tooltip.style.top = (e.clientY - 10) + 'px';
+}
+
+function hideTooltip() {
+  document.getElementById('treeTooltip').style.display = 'none';
+}
+
+// ===================== TAB SWITCHING =====================
+function switchTab(tab, btn) {
+  document.querySelectorAll('.prototype-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-dashboard').style.display = tab === 'dashboard' ? 'block' : 'none';
+  document.getElementById('tab-dependency').style.display = tab === 'dependency' ? 'block' : 'none';
+  if (tab === 'dependency') renderFileTree();
+}
+
+// ===================== ISSUE DETAIL =====================
+function showIssueDetail(index) {
+  const issue = MOCK.issues[index];
+  if (!issue) return;
+  const c = issue.classification;
+  const body = issue.body || '无详细描述';
+  const comments = Array.from({length: Math.min(issue.comments, 3)}, (_, i) => ({
+    author: ['dev_user_42', 'tiangolo', 'contributor_99'][i],
+    text: ['I have the same issue, any workaround?', 'Thanks for the report. We are looking into it.', 'This should be fixed in the latest commit. Please verify.'],
+    time: ['2 days ago', '1 day ago', '5 hours ago'],
+  }));
+  const modal = document.getElementById('issueModalContent');
+  modal.innerHTML = `
+    <div class="issue-detail">
+      <div class="issue-detail-header">
+        <div class="issue-number">#${issue.number} · ${issue.state} · ${issue.author} · 更新于 ${formatDate(issue.updated_at)}</div>
+        <h3>${issue.title}</h3>
+        <div class="issue-meta-row">
+          <span class="issue-meta-item">${iconSvg('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>')} ${issue.comments} 条评论</span>
+          <span class="issue-meta-item">${iconSvg('<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>')} ${issue.labels.join(', ')}</span>
+        </div>
+      </div>
+
+      <div class="classification-detail">
+        <h4>
+          🤖 Issue 智能分析结果
+          <span class="badge ${c.category}">${formatCategory(c.category)}</span>
+          <span style="font-size:12px;color:#6a747e;font-weight:400">置信度 ${Math.round(c.confidence*100)}%</span>
+        </h4>
+        <div class="classification-row">
+          <span class="label">分析理由</span>
+          <div class="value"><p>${c.reason}</p></div>
+        </div>
+        <div class="classification-row">
+          <span class="label">置信度</span>
+          <div class="value">
+            <div class="confidence-bar"><span style="width:${Math.round(c.confidence*100)}%"></span></div>
+          </div>
+        </div>
+        <div class="classification-row">
+          <span class="label">建议操作</span>
+          <div class="value"><p>${c.suggested_action}</p></div>
+        </div>
+        <div class="classification-row">
+          <span class="label">识别信号</span>
+          <div class="value">
+            <div class="signal-list">${c.signals.map(s => `<span class="signal-tag">${s}</span>`).join('')}</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h4 style="font-size:13px;color:#43505c;margin:0 0 6px">Issue 原文</h4>
+        <div class="issue-body">${body}</div>
+      </div>
+
+      <div>
+        <h4 style="font-size:13px;color:#43505c;margin:0 0 8px">评论 (${issue.comments} 条)</h4>
+        <div class="issue-comments">
+          ${comments.map(cm => `
+            <div class="issue-comment">
+              <div><span class="issue-comment-author">${cm.author}</span><span class="issue-comment-time">${cm.time}</span></div>
+              <div class="issue-comment-text">${cm.text}</div>
+            </div>
+          `).join('')}
+          ${issue.comments > 3 ? `<p style="font-size:11px;color:#6a747e;text-align:center;margin:4px 0 0">... 还有 ${issue.comments - 3} 条评论</p>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('issueModal').style.display = 'flex';
+}
+
+function closeIssueDetail(e) {
+  if (e.target === e.currentTarget) {
+    document.getElementById('issueModal').style.display = 'none';
+  }
+}
+
+// ===================== INBOX =====================
+function toggleInbox() {
+  const modal = document.getElementById('inboxModal');
+  const isOpen = modal.style.display === 'flex';
+  modal.style.display = isOpen ? 'none' : 'flex';
+  if (!isOpen) renderInbox();
+}
+
+function closeInbox(e) {
+  if (e.target === e.currentTarget) document.getElementById('inboxModal').style.display = 'none';
+}
+
+function renderInbox() {
+  const list = document.getElementById('inboxList');
+  if (MOCK.webhookEvents.length === 0) {
+    list.innerHTML = '<p class="inbox-empty">暂无通知</p>';
+    return;
+  }
+  list.innerHTML = MOCK.webhookEvents.map(evt => `
+    <div class="inbox-item">
+      <div class="inbox-item-header">
+        <span class="badge ${evt.classification?.category || ''}">${evt.classification ? formatCategory(evt.classification.category) : evt.event_type}</span>
+        <span class="inbox-time">${timeAgo(evt.received_at)}</span>
+      </div>
+      <button class="inbox-item-title" onclick="closeInbox({target:document.getElementById('inboxModal')});showIssueDetailByNumber(${evt.issue_number})">
+        ${evt.repository}#${evt.issue_number}
+      </button>
+      ${evt.classification?.reason ? `<p class="inbox-item-reason">${evt.classification.reason}</p>` : ''}
+    </div>
+  `).join('');
+}
+
+function showIssueDetailByNumber(num) {
+  const idx = MOCK.issues.findIndex(i => i.number === num);
+  if (idx >= 0) showIssueDetail(idx);
+}
+
+// ===================== SETTINGS =====================
+function toggleSettings() {
+  const modal = document.getElementById('settingsModal');
+  modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+}
+function closeSettings(e) {
+  if (e.target === e.currentTarget) document.getElementById('settingsModal').style.display = 'none';
+}
+
+// ===================== CHAT =====================
+function handleChat(e) {
+  e.preventDefault();
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+
+  const thread = document.getElementById('chatThread');
+  // Add user message
+  thread.insertAdjacentHTML('beforeend', `
+    <article class="chat-message user">
+      <div class="chat-bubble" style="grid-column:1;background:#1f6feb;border-color:#1f6feb;color:#fff">${escapeHtml(text)}</div>
+      <div class="chat-avatar" style="grid-column:2;grid-row:1;background:#e7f0fb;color:#1555a0">${iconSvg('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',14)}</div>
+    </article>
+  `);
+
+  // Simulate response
+  setTimeout(() => {
+    const responses = [
+      '根据仓库分析，测试文件主要位于 `tests/` 目录下，共计 **108 个测试文件**。测试覆盖率覆盖了路由、依赖注入、WebSocket 和安全模块。',
+      '项目的主入口文件是 `fastapi/main.py`，它导入了 routing、dependencies 等核心模块。可以查看文件依赖关系树获取更详细的模块依赖图。',
+      '当前仓库共有 **246 个 Open Issues**，其中 bug 占 42 个，feature request 占 35 个。Bug 的修复优先级通常较高。',
+      '项目的核心依赖包括：**Starlette**（Web 框架基座）、**Pydantic**（数据验证）、**Uvicorn**（ASGI 服务器）。这些都可以在 `pyproject.toml` 中找到。',
+    ];
+    const resp = responses[Math.floor(Math.random() * responses.length)];
+    thread.insertAdjacentHTML('beforeend', `
+      <article class="chat-message assistant">
+        <div class="chat-avatar">${iconSvg('<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',14)}</div>
+        <div class="chat-bubble">
+          <div style="line-height:1.55;font-size:13px">${resp}</div>
+          <div class="tool-strip" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">
+            <span style="border-radius:999px;background:#edf7f1;color:#18794e;font-size:10px;font-weight:700;padding:3px 6px">search_files</span>
+          </div>
+        </div>
+      </article>
+    `);
+    thread.scrollTop = thread.scrollHeight;
+  }, 600);
+
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// ===================== ANALYSIS DETAIL =====================
+function showAnalysisDetail(type) {
+  const modal = document.getElementById('analysisModalContent');
+  const data = {
+    dirs: {
+      title: '📁 主要目录分析',
+      subtitle: '仓库顶层目录结构及文件分布',
+      sections: [
+        { title: '目录概览', rows: [
+          { label: '总目录数', value: '12 个顶层目录 / 38 个嵌套子目录' },
+          { label: '源码目录', value: 'fastapi/ · 18 个 Python 模块' },
+          { label: '测试目录', value: 'tests/ · 8 个测试文件 (含子目录)' },
+          { label: '文档目录', value: 'docs/ · 6 个文档页面 + 多语种' },
+          { label: 'CI/CD', value: '.github/workflows/ · 3 个流水线配置' },
+        ]},
+        { title: '📂 各目录文件清单', fileList: [
+          { path: 'fastapi/', category: 'source_code', count: 18, files: '__init__.py, main.py, routing.py, dependencies.py, params.py, responses.py, requests.py, exception_handlers.py, encoders.py, websockets.py, testclient.py, middleware/*, security/*, openapi/*' },
+          { path: 'tests/', category: 'tests', count: 8, files: 'test_main.py, test_routing.py, test_dependency.py, test_security/*, test_websocket.py, test_exception_handlers.py' },
+          { path: 'docs/', category: 'documentation', count: 6, files: 'en/docs/index.md, en/docs/features.md, en/docs/tutorial/*' },
+          { path: '.github/workflows/', category: 'ci_cd', count: 3, files: 'build.yml, test.yml, publish.yml' },
+        ]},
+      ]
+    },
+    deps: {
+      title: '📦 依赖文件分析',
+      subtitle: '项目的依赖配置和外部包依赖详情',
+      sections: [
+        { title: '核心依赖配置', rows: [
+          { label: 'pyproject.toml', value: 'Python 项目元数据，定义构建系统和核心依赖' },
+          { label: 'requirements.txt', value: 'pip 格式依赖列表，包含所有运行时依赖' },
+          { label: '环境要求', value: 'Python ≥ 3.8，推荐 3.11+' },
+        ]},
+        { title: '📋 主要运行时依赖', fileList: [
+          { path: 'Starlette', category: 'dependency', count: 1, files: '≥ 0.38.0 — ASGI Web 框架基座' },
+          { path: 'Pydantic', category: 'dependency', count: 1, files: '≥ 2.8.0 — 数据验证与序列化' },
+          { path: 'Uvicorn', category: 'dependency', count: 1, files: 'ASGI 服务器（开发/生产）' },
+          { path: 'HTTPX', category: 'dependency', count: 1, files: '异步 HTTP 客户端（TestClient）' },
+          { path: 'Jinja2', category: 'dependency', count: 1, files: '模板引擎（可选依赖）' },
+          { path: 'python-multipart', category: 'dependency', count: 1, files: '表单文件上传支持' },
+        ]},
+        { title: '开发依赖', rows: [
+          { label: 'pytest', value: '测试框架' },
+          { label: 'ruff', value: '代码检查与格式化' },
+          { label: 'mypy', value: '类型检查' },
+          { label: 'pre-commit', value: 'Git 钩子管理' },
+        ]},
+      ]
+    },
+    entries: {
+      title: '🚪 入口文件分析',
+      subtitle: '识别出的项目入口文件和启动方式',
+      sections: [
+        { title: '识别方式', rows: [
+          { label: '分析规则', value: '基于文件名模式匹配（main.py / app.py / server.py 等）' },
+          { label: '排除条件', value: '自动排除 test/ docs/ examples/ 等非源码目录' },
+          { label: '匹配结果', value: '在 286 个源码文件中发现 2 个入口候选' },
+        ]},
+        { title: '入口文件详情', rows: [
+          { label: 'fastapi/main.py', value: '主应用入口 · 48.2 KB · 导出 FastAPI 应用实例' },
+          { label: 'fastapi/app.py', value: '应用工厂 · 18.5 KB · 提供 create_app() 工厂函数' },
+        ]},
+        { title: '启动方式', rows: [
+          { label: '开发模式', value: 'uvicorn fastapi.main:app --reload' },
+          { label: '生产模式', value: 'uvicorn fastapi.main:app --host 0.0.0.0 --port 80' },
+          { label: '容器化', value: 'Dockerfile 中使用 gunicorn -k uvicorn.workers.UvicornWorker' },
+        ]},
+      ]
+    },
+    tests_docs: {
+      title: '🧪 测试与文档分析',
+      subtitle: '项目测试覆盖与文档体系概览',
+      sections: [
+        { title: '测试体系', rows: [
+          { label: '测试框架', value: 'pytest + httpx (TestClient)' },
+          { label: '测试文件数', value: '108 个测试文件' },
+          { label: '测试模块', value: '7 个：main, routing, dependency, security, websocket, exception_handlers, openapi' },
+          { label: '测试覆盖率', value: '核心模块覆盖率约 92%（估算）' },
+        ]},
+        { title: '测试模块详情', fileList: [
+          { path: 'tests/test_main.py', category: 'tests', count: 1, files: '主应用路由、生命周期测试' },
+          { path: 'tests/test_routing.py', category: 'tests', count: 1, files: '路由注册、HTTP 方法映射' },
+          { path: 'tests/test_dependency.py', category: 'tests', count: 1, files: '依赖注入解析、缓存' },
+          { path: 'tests/test_security/', category: 'tests', count: 2, files: 'OAuth2、HTTP Basic 认证' },
+          { path: 'tests/test_websocket.py', category: 'tests', count: 1, files: 'WebSocket 连接与消息' },
+          { path: 'tests/test_exception_handlers.py', category: 'tests', count: 1, files: '异常处理器链路' },
+        ]},
+        { title: '文档体系', rows: [
+          { label: '文档格式', value: 'Markdown + MkDocs 构建' },
+          { label: '文档文件数', value: '67 个文档文件（含中英文）' },
+          { label: '核心文档', value: 'index.md, features.md, tutorial/* (first-steps, path-params, query-params, body)' },
+          { label: '在线文档', value: 'https://fastapi.tiangolo.com/' },
+        ]},
+      ]
+    },
+  };
+  const info = data[type];
+  if (!info) return;
+  modal.innerHTML = `
+    <div class="analysis-detail">
+      <div class="analysis-detail-header">
+        <h3>${info.title}</h3>
+        <div class="analysis-sub">${info.subtitle}</div>
+      </div>
+      <div class="analysis-detail-body">
+        ${info.sections.map(sec => {
+          if (sec.fileList) {
+            return `<div class="analysis-detail-section">
+              <h4>${sec.title}</h4>
+              <div class="analysis-detail-file-list">
+                ${sec.fileList.map(f => `
+                  <div class="analysis-detail-file-item">
+                    <span class="tree-dot ${f.category}" style="width:8px;height:8px;border-radius:50%;flex-shrink:0"></span>
+                    <span class="file-path">${f.path}</span>
+                    <span class="file-meta">${f.count > 1 ? f.count+' 个文件 · ' : ''}${f.files}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>`;
+          } else if (sec.rows) {
+            return `<div class="analysis-detail-section">
+              <h4>${sec.title}</h4>
+              <div class="analysis-detail-table">
+                ${sec.rows.map(r => `
+                  <div class="analysis-detail-row">
+                    <span class="label">${r.label}</span>
+                    <span class="value">${r.value}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>`;
+          }
+          return '';
+        }).join('')}
+      </div>
+    </div>
+  `;
+  document.getElementById('analysisModal').style.display = 'flex';
+}
+
+function closeAnalysisDetail(e) {
+  if (e.target === e.currentTarget) {
+    document.getElementById('analysisModal').style.display = 'none';
+  }
+}
+
+// ===================== MODULE DEPENDENCY GRAPH =====================
+function renderModuleDepGraph() {
+  const container = document.getElementById('moduleDepGraph');
+  if (!container) return;
+  // Layer-based graph showing architecture layers and their dependencies
+  container.innerHTML = `
+    <div class="dep-graph-large">
+      <h4>${iconSvg('<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',14)} 分层架构依赖图</h4>
+      <div class="dep-graph-svg">
+        <svg viewBox="0 0 680 320" xmlns="http://www.w3.org/2000/svg" style="font-family:-apple-system,sans-serif">
+          <defs>
+            <marker id="arrowBlue" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="#7b9fd4"/>
+            </marker>
+            <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="#5cad7a"/>
+            </marker>
+            <marker id="arrowPurple" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="#9a7cc4"/>
+            </marker>
+          </defs>
+
+          <!-- Layer 1: External -->
+          <rect x="10" y="8" width="660" height="50" rx="6" fill="#f0f4f9" stroke="#d0d7de" stroke-width="1"/>
+          <text x="340" y="22" text-anchor="middle" font-size="11" fill="#6a747e" font-weight="700">基础设施层 (外部包)</text>
+          <rect x="30" y="30" rx="4" width="90" height="22" fill="#fff" stroke="#cbd5dd"/>
+          <text x="75" y="45" text-anchor="middle" font-size="11" fill="#43505c">Starlette</text>
+          <rect x="140" y="30" rx="4" width="80" height="22" fill="#fff" stroke="#cbd5dd"/>
+          <text x="180" y="45" text-anchor="middle" font-size="11" fill="#43505c">Pydantic</text>
+          <rect x="240" y="30" rx="4" width="80" height="22" fill="#fff" stroke="#cbd5dd"/>
+          <text x="280" y="45" text-anchor="middle" font-size="11" fill="#43505c">Uvicorn</text>
+          <rect x="340" y="30" rx="4" width="70" height="22" fill="#fff" stroke="#cbd5dd"/>
+          <text x="375" y="45" text-anchor="middle" font-size="11" fill="#43505c">HTTPX</text>
+          <rect x="430" y="30" rx="4" width="80" height="22" fill="#fff" stroke="#cbd5dd"/>
+          <text x="470" y="45" text-anchor="middle" font-size="11" fill="#43505c">typing</text>
+          <rect x="530" y="30" rx="4" width="60" height="22" fill="#fff" stroke="#cbd5dd"/>
+          <text x="560" y="45" text-anchor="middle" font-size="11" fill="#43505c">JSON</text>
+          <rect x="610" y="30" rx="4" width="50" height="22" fill="#fff" stroke="#cbd5dd"/>
+          <text x="635" y="45" text-anchor="middle" font-size="11" fill="#43505c">enum</text>
+
+          <!-- Layer 2: FastAPI Core -->
+          <rect x="10" y="72" width="660" height="72" rx="6" fill="#e7f0fb" stroke="#b7d4f0" stroke-width="1"/>
+          <text x="340" y="86" text-anchor="middle" font-size="11" fill="#2d6cdf" font-weight="700">FastAPI 核心层</text>
+          <rect x="30" y="95" rx="4" width="100" height="22" fill="#ddeeff" stroke="#7b9fd4"/>
+          <text x="80" y="110" text-anchor="middle" font-size="10" fill="#1f6feb" font-weight="600">main.py</text>
+          <rect x="150" y="95" rx="4" width="80" height="22" fill="#ddeeff" stroke="#7b9fd4"/>
+          <text x="190" y="110" text-anchor="middle" font-size="10" fill="#1f6feb" font-weight="600">routing.py</text>
+          <rect x="250" y="95" rx="4" width="100" height="22" fill="#ddeeff" stroke="#7b9fd4"/>
+          <text x="300" y="110" text-anchor="middle" font-size="10" fill="#1f6feb" font-weight="600">dependencies.py</text>
+          <rect x="370" y="95" rx="4" width="80" height="22" fill="#ddeeff" stroke="#7b9fd4"/>
+          <text x="410" y="110" text-anchor="middle" font-size="10" fill="#1f6feb" font-weight="600">params.py</text>
+          <rect x="470" y="95" rx="4" width="90" height="22" fill="#ddeeff" stroke="#7b9fd4"/>
+          <text x="515" y="110" text-anchor="middle" font-size="10" fill="#1f6feb" font-weight="600">responses.py</text>
+          <rect x="580" y="95" rx="4" width="80" height="22" fill="#ddeeff" stroke="#7b9fd4"/>
+          <text x="620" y="110" text-anchor="middle" font-size="10" fill="#1f6feb" font-weight="600">encoders.py</text>
+
+          <!-- Layer 3: Extension modules -->
+          <rect x="10" y="158" width="660" height="72" rx="6" fill="#e8f5ef" stroke="#a8cfb7" stroke-width="1"/>
+          <text x="340" y="172" text-anchor="middle" font-size="11" fill="#18794e" font-weight="700">扩展模块层</text>
+          <rect x="30" y="182" rx="4" width="90" height="22" fill="#e8f5ef" stroke="#7cb899"/>
+          <text x="75" y="197" text-anchor="middle" font-size="10" fill="#18794e" font-weight="600">middleware/</text>
+          <rect x="140" y="182" rx="4" width="90" height="22" fill="#e8f5ef" stroke="#7cb899"/>
+          <text x="185" y="197" text-anchor="middle" font-size="10" fill="#18794e" font-weight="600">security/</text>
+          <rect x="250" y="182" rx="4" width="90" height="22" fill="#e8f5ef" stroke="#7cb899"/>
+          <text x="295" y="197" text-anchor="middle" font-size="10" fill="#18794e" font-weight="600">openapi/</text>
+          <rect x="360" y="182" rx="4" width="100" height="22" fill="#e8f5ef" stroke="#7cb899"/>
+          <text x="410" y="197" text-anchor="middle" font-size="10" fill="#18794e" font-weight="600">websockets.py</text>
+          <rect x="480" y="182" rx="4" width="90" height="22" fill="#e8f5ef" stroke="#7cb899"/>
+          <text x="525" y="197" text-anchor="middle" font-size="10" fill="#18794e" font-weight="600">testclient.py</text>
+
+          <!-- Layer 4: Tests & Docs -->
+          <rect x="10" y="244" width="660" height="50" rx="6" fill="#fef6e8" stroke="#e8d5a8" stroke-width="1"/>
+          <text x="340" y="258" text-anchor="middle" font-size="11" fill="#946200" font-weight="700">测试与文档层</text>
+          <rect x="30" y="267" rx="4" width="120" height="22" fill="#fef6e8" stroke="#d4bc7a"/>
+          <text x="90" y="282" text-anchor="middle" font-size="10" fill="#946200" font-weight="600">tests/ (8 files)</text>
+          <rect x="170" y="267" rx="4" width="120" height="22" fill="#fef6e8" stroke="#d4bc7a"/>
+          <text x="230" y="282" text-anchor="middle" font-size="10" fill="#946200" font-weight="600">docs/ (6 pages)</text>
+          <rect x="310" y="267" rx="4" width="120" height="22" fill="#fef6e8" stroke="#d4bc7a"/>
+          <text x="370" y="282" text-anchor="middle" font-size="10" fill="#946200" font-weight="600">pyproject.toml</text>
+
+          <!-- Arrows: Layer 2 depends on Layer 1 -->
+          <line x1="75" y1="95" x2="75" y2="53" stroke="#7b9fd4" stroke-width="1.5" marker-end="url(#arrowBlue)" opacity="0.5"/>
+          <line x1="190" y1="95" x2="190" y2="53" stroke="#7b9fd4" stroke-width="1.5" marker-end="url(#arrowBlue)" opacity="0.5"/>
+          <line x1="300" y1="95" x2="300" y2="53" stroke="#7b9fd4" stroke-width="1.5" marker-end="url(#arrowBlue)" opacity="0.5"/>
+          <line x1="410" y1="95" x2="410" y2="53" stroke="#7b9fd4" stroke-width="1.5" marker-end="url(#arrowBlue)" opacity="0.5"/>
+
+          <!-- Arrows: Layer 2 internal (main→routing, main→dependencies) -->
+          <path d="M 130 106 L 145 106" stroke="#7b9fd4" stroke-width="1" marker-end="url(#arrowBlue)" opacity="0.4"/>
+          <path d="M 130 106 Q 200 90 245 106" stroke="#7b9fd4" stroke-width="1" fill="none" marker-end="url(#arrowBlue)" opacity="0.4"/>
+          <path d="M 230 106 L 245 106" stroke="#7b9fd4" stroke-width="1" marker-end="url(#arrowBlue)" opacity="0.3"/>
+
+          <!-- Arrows: Layer 3 depends on Layer 2 -->
+          <line x1="75" y1="182" x2="80" y2="140" stroke="#5cad7a" stroke-width="1.5" marker-end="url(#arrowGreen)" opacity="0.4"/>
+          <line x1="185" y1="182" x2="190" y2="140" stroke="#5cad7a" stroke-width="1.5" marker-end="url(#arrowGreen)" opacity="0.4"/>
+          <line x1="295" y1="182" x2="300" y2="140" stroke="#5cad7a" stroke-width="1.5" marker-end="url(#arrowGreen)" opacity="0.4"/>
+          <line x1="410" y1="182" x2="300" y2="140" stroke="#5cad7a" stroke-width="1.5" marker-end="url(#arrowGreen)" opacity="0.3"/>
+          <line x1="525" y1="182" x2="190" y2="140" stroke="#5cad7a" stroke-width="1.5" marker-end="url(#arrowGreen)" opacity="0.3"/>
+
+          <!-- Arrows: Layer 4 depends on Layer 2/3 -->
+          <line x1="90" y1="267" x2="80" y2="200" stroke="#c4a860" stroke-width="1.5" marker-end="url(#arrowPurple)" opacity="0.4" stroke-dasharray="4,2"/>
+          <line x1="230" y1="267" x2="190" y2="200" stroke="#c4a860" stroke-width="1.5" marker-end="url(#arrowPurple)" opacity="0.4" stroke-dasharray="4,2"/>
+        </svg>
+      </div>
+      <div style="display:flex;gap:16px;justify-content:center;margin-top:10px;font-size:10px;color:#6a747e">
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#7b9fd4;vertical-align:middle;margin-right:4px"></span>导入依赖</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#5cad7a;vertical-align:middle;margin-right:4px"></span>模块扩展</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#c4a860;vertical-align:middle;margin-right:4px"></span>测试/文档引用</span>
+      </div>
+    </div>
+  `;
+}
+
+// ===================== INIT =====================
+function init() {
+  renderDashboard();
+  renderModuleDepGraph();
+
+  // Render initial chat messages
+  const thread = document.getElementById('chatThread');
+  thread.innerHTML = MOCK.chatMessages.map(msg => {
+    if (msg.role === 'assistant') {
+      const toolStrip = msg.toolCalls && msg.toolCalls.length > 0
+        ? `<div class="tool-strip" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">${msg.toolCalls.map(t => `<span style="border-radius:999px;background:#edf7f1;color:#18794e;font-size:10px;font-weight:700;padding:3px 6px">${t.name}</span>`).join('')}</div>`
+        : '';
+      return `<article class="chat-message assistant">
+        <div class="chat-avatar">${iconSvg('<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',14)}</div>
+        <div class="chat-bubble"><div style="line-height:1.55;font-size:13px">${msg.content.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>')}</div>${toolStrip}</div>
+      </article>`;
+    } else {
+      return `<article class="chat-message user">
+        <div class="chat-bubble" style="grid-column:1;background:#1f6feb;border-color:#1f6feb;color:#fff">${escapeHtml(msg.content)}</div>
+        <div class="chat-avatar" style="grid-column:2;grid-row:1;background:#e7f0fb;color:#1555a0">${iconSvg('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',14)}</div>
+      </article>`;
+    }
+  }).join('');
+  thread.scrollTop = thread.scrollHeight;
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

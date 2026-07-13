@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     )
     github_api_base_url: str = "https://api.github.com"
     github_api_version: str = "2022-11-28"
-    request_timeout_seconds: float = 20.0
+    request_timeout_seconds: float = 200
 
     # --- Database ---
     database_url: str | None = Field(
