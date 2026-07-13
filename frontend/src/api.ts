@@ -162,18 +162,32 @@ export async function syncRepository(payload: SyncRepositoryPayload): Promise<Re
 
 // -- Webhook event types ----------------------------------------------------
 
+export type WebhookClassification = {
+  category: string | null
+  confidence: number | null
+  reason: string | null
+  suggested_action?: string | null
+  signals?: string[]
+}
+
 export type WebhookEventItem = {
   event_id: string
   event_type: string
   action: string
   repository: string
   issue_number: number
-  classification: {
-    category: string | null
-    confidence: number | null
-    reason: string | null
-  } | null
+  issue_title?: string
+  issue_state?: string
+  issue_author?: string | null
+  issue_labels?: string[]
+  classification: WebhookClassification | null
   received_at: string
+}
+
+export type WebhookEventDetail = WebhookEventItem & {
+  issue_body: string | null
+  issue_comments_count: number
+  issue_html_url: string | null
 }
 
 // -- API calls -------------------------------------------------------------
@@ -196,6 +210,18 @@ export async function fetchWebhookEvents(limit = 20): Promise<WebhookEventItem[]
   if (!response.ok) {
     const error = await response.json().catch(() => null)
     throw new Error(error?.detail ?? `Failed to fetch events: ${response.status}`)
+  }
+
+  return response.json()
+}
+
+/** Fetch full detail for a single webhook event by event_id. */
+export async function fetchWebhookEventDetail(eventId: string): Promise<WebhookEventDetail> {
+  const response = await fetch(`${API_BASE_URL}/api/webhooks/events/${encodeURIComponent(eventId)}`)
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null)
+    throw new Error(error?.detail ?? `Failed to fetch event detail: ${response.status}`)
   }
 
   return response.json()

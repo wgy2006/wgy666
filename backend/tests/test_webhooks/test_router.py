@@ -261,3 +261,137 @@ def test_list_events_non_opened_not_stored(client):
 
     resp = client.get("/api/webhooks/events")
     assert resp.json() == []
+
+
+# ---------------------------------------------------------------------------
+# Event detail endpoint
+# ---------------------------------------------------------------------------
+
+def test_get_event_detail_found(client, clear_store):
+    """GET /events/{event_id} returns full detail for a stored event."""
+    payload = {
+        "action": "opened",
+        "issue": {
+            "title": "Bug: login crash",
+            "body": "Error when logging in",
+            "number": 7,
+            "labels": [{"name": "bug"}],
+            "state": "open",
+            "html_url": "https://github.com/o/r/issues/7",
+            "user": {"login": "testuser"},
+            "comments": 3,
+        },
+        "repository": {"full_name": "o/r"},
+    }
+    client.post(
+        "/api/webhooks/github",
+        json=payload,
+        headers={"X-GitHub-Event": "issues", "X-GitHub-Delivery": "detail-evt-1"},
+    )
+
+    resp = client.get("/api/webhooks/events/detail-evt-1")
+    assert resp.status_code == 200
+    detail = resp.json()
+    assert detail["event_id"] == "detail-evt-1"
+    assert detail["issue_number"] == 7
+    assert detail["issue_title"] == "Bug: login crash"
+    assert detail["issue_state"] == "open"
+    assert detail["issue_author"] == "testuser"
+    assert detail["issue_labels"] == ["bug"]
+    assert detail["issue_body"] == "Error when logging in"
+    assert detail["issue_comments_count"] == 3
+    assert detail["issue_html_url"] == "https://github.com/o/r/issues/7"
+    assert detail["classification"] is not None
+    assert detail["classification"]["category"] == "bug"
+
+
+def test_get_event_detail_not_found(client, clear_store):
+    """GET /events/{event_id} returns 404 for unknown ID."""
+    resp = client.get("/api/webhooks/events/nonexistent-id")
+    assert resp.status_code == 404
+
+
+def test_get_event_detail_question_has_suggested_action(client, clear_store):
+    """A question issue includes suggested_action and signals in detail."""
+    payload = {
+        "action": "opened",
+        "issue": {
+            "title": "How do I configure this?",
+            "body": "I can't find the config",
+            "number": 8,
+            "labels": [{"name": "question"}],
+            "state": "open",
+            "html_url": "https://github.com/o/r/issues/8",
+            "user": {"login": "asker"},
+            "comments": 0,
+        },
+        "repository": {"full_name": "o/r"},
+    }
+    client.post(
+        "/api/webhooks/github",
+        json=payload,
+        headers={"X-GitHub-Event": "issues", "X-GitHub-Delivery": "detail-evt-q"},
+    )
+
+    resp = client.get("/api/webhooks/events/detail-evt-q")
+    detail = resp.json()
+    c = detail["classification"]
+    assert c["category"] == "question"
+    assert c["suggested_action"] is not None
+    assert isinstance(c["signals"], list) and len(c["signals"]) > 0
+
+
+# ---------------------------------------------------------------------------
+# Events list includes new fields
+# ---------------------------------------------------------------------------
+
+def test_list_events_includes_title_and_labels(client, clear_store):
+    """The events list endpoint now includes issue_title, issue_state, and labels."""
+    payload = {
+        "action": "opened",
+        "issue": {
+            "title": "Feature: add dark mode",
+            "body": "Would love dark mode",
+            "number": 9,
+            "labels": [{"name": "enhancement"}],
+            "state": "open",
+            "html_url": "https://github.com/o/r/issues/9",
+            "user": {"login": "user1"},
+            "comments": 0,
+        },
+        "repository": {"full_name": "o/r"},
+    }
+    client.post(
+        "/api/webhooks/github",
+        json=payload,
+        headers={"X-GitHub-Event": "issues", "X-GitHub-Delivery": "title-evt-1"},
+    )
+
+    resp = client.get("/api/webhooks/events")
+    assert resp.status_code == 200
+    events = resp.json()
+    matching = [e for e in events if e["event_id"] == "title-evt-1"]
+    assert len(matching) == 1
+    evt = matching[0]
+    assert evt["issue_title"] == "Feature: add dark mode"
+    assert evt["issue_state"] == "open"
+    assert evt["issue_labels"] == ["enhancement"]
+    assert evt["classification"]["suggested_action"] is not None
+
+
+def test_list_events_non_opened_still_excluded(client, clear_store):
+    """Non-'opened' events are still excluded from the list."""
+    payload = {
+        "action": "closed",
+        "issue": {"title": "Already fixed", "body": "", "number": 99, "labels": []},
+        "repository": {"full_name": "o/r"},
+    }
+    client.post(
+        "/api/webhooks/github",
+        json=payload,
+        headers={"X-GitHub-Event": "issues", "X-GitHub-Delivery": "evt-closed-1"},
+    )
+
+    resp = client.get("/api/webhooks/events")
+    ids = [e["event_id"] for e in resp.json()]
+    assert "evt-closed-1" not in ids
