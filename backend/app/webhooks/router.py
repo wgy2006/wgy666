@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Header, HTTPException, Request
 
 from app.core.config import settings
+from app.webhooks.auto_reply import IssueAutoReplyService
 from app.webhooks.handler import dispatch_event, verify_signature, webhook_event_store
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -28,7 +29,33 @@ async def github_webhook(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Invalid JSON body") from exc
 
-    dispatch_event(x_github_event, payload, delivery_id=x_github_delivery)
+    record = dispatch_event(x_github_event, payload, delivery_id=x_github_delivery)
+
+    # ── Auto-reply (non-blocking, best-effort) ───────────────────────
+    if record and record.classification:
+        category = record.classification.category.value
+        # Only auto-reply to question / info_needed / documentation issues
+        if category in {"question", "info_needed", "documentation", "feature_request"}:
+            try:
+                auto_reply = IssueAutoReplyService()
+                result = await auto_reply.generate_reply(
+                    owner=record.repository.split("/")[0],
+                    name=record.repository.split("/")[1],
+                    issue_title=record.issue_title,
+                    issue_body=record.raw_payload.get("issue", {}).get("body"),
+                    labels=record.issue_labels,
+                )
+                if result and result.used_llm:
+                    from app.services.github_client import GitHubClient
+                    from app.services.repository_url import parse_github_repository_url
+                    ref = parse_github_repository_url(
+                        f"https://github.com/{record.repository}"
+                    )
+                    async with GitHubClient() as gh:
+                        await gh.comment_on_issue(ref, record.issue_number, result.reply_text)
+            except Exception:
+                # Auto-reply is best-effort; never break the webhook flow.
+                pass
 
     # GitHub expects a 2xx response quickly.
     return {"status": "ok"}
@@ -71,12 +98,52 @@ async def list_webhook_events(limit: int = 20) -> list[dict]:
             "action": e.action,
             "repository": e.repository,
             "issue_number": e.issue_number,
+            "issue_title": e.issue_title,
+            "issue_state": e.issue_state,
+            "issue_author": e.issue_author,
+            "issue_labels": e.issue_labels,
             "classification": {
                 "category": e.classification.category.value if e.classification else None,
                 "confidence": e.classification.confidence if e.classification else None,
                 "reason": e.classification.reason if e.classification else None,
+                "suggested_action": e.classification.suggested_action if e.classification else None,
+                "signals": e.classification.signals if e.classification else None,
             },
             "received_at": e.received_at.isoformat(),
         }
         for e in events[:limit]
     ]
+
+
+@router.get("/events/{event_id}")
+async def get_webhook_event(event_id: str) -> dict:
+    """Return full detail for a single webhook event."""
+    record = webhook_event_store.get(event_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    # Extract additional issue data from the raw payload.
+    issue_data = record.raw_payload.get("issue", {}) if record.raw_payload else {}
+
+    return {
+        "event_id": record.event_id,
+        "event_type": record.event_type,
+        "action": record.action,
+        "repository": record.repository,
+        "issue_number": record.issue_number,
+        "issue_title": record.issue_title,
+        "issue_state": record.issue_state,
+        "issue_author": record.issue_author,
+        "issue_labels": record.issue_labels,
+        "issue_body": issue_data.get("body"),
+        "issue_comments_count": issue_data.get("comments", 0),
+        "issue_html_url": issue_data.get("html_url"),
+        "classification": {
+            "category": record.classification.category.value if record.classification else None,
+            "confidence": record.classification.confidence if record.classification else None,
+            "reason": record.classification.reason if record.classification else None,
+            "suggested_action": record.classification.suggested_action if record.classification else None,
+            "signals": record.classification.signals if record.classification else [],
+        },
+        "received_at": record.received_at.isoformat(),
+    }

@@ -204,32 +204,61 @@ class GitHubClient:
 
         return response.json()
 
-    # -- Write operations (TODO: complete when auto-reply/fix module is ready) --
+    # -- Write operations (auto-reply / auto-fix) ---------------------------
 
-    # TODO: Reply to an issue with a comment body.
-    # async def comment_on_issue(self, ref: RepositoryRef, issue_number: int, body: str) -> dict[str, Any]:
-    #     return await self._post(
-    #         f"/repos/{ref.owner}/{ref.name}/issues/{issue_number}/comments",
-    #         json_data={"body": body},
-    #     )
+    async def comment_on_issue(self, ref: RepositoryRef, issue_number: int, body: str) -> dict[str, Any]:
+        """Post a comment on a GitHub issue.
 
-    # TODO: Update issue state (close, reopen) or add labels.
-    # async def update_issue(self, ref: RepositoryRef, issue_number: int, state: str) -> dict[str, Any]:
-    #     return await self._patch(
-    #         f"/repos/{ref.owner}/{ref.name}/issues/{issue_number}",
-    #         json_data={"state": state},
-    #     )
+        Requires a GitHub token with ``issues:write`` scope.
+        """
+        return await self._post(
+            f"/repos/{ref.owner}/{ref.name}/issues/{issue_number}/comments",
+            json_data={"body": body},
+        )
 
-    # TODO: Create a pull request from a fix branch.
-    # async def create_pull_request(self, ref: RepositoryRef, title: str, head: str, base: str, body: str) -> dict[str, Any]:
-    #     return await self._post(
-    #         f"/repos/{ref.owner}/{ref.name}/pulls",
-    #         json_data={"title": title, "head": head, "base": base, "body": body},
-    #     )
+    async def update_issue(self, ref: RepositoryRef, issue_number: int, **fields: Any) -> dict[str, Any]:
+        """Update issue fields (state, labels, title, etc.).
 
-    # TODO: Create a new branch from a given SHA.
-    # async def create_branch(self, ref: RepositoryRef, branch_name: str, sha: str) -> dict[str, Any]:
-    #     return await self._post(
-    #         f"/repos/{ref.owner}/{ref.name}/git/refs",
-    #         json_data={"ref": f"refs/heads/{branch_name}", "sha": sha},
+        Example::
+
+            await client.update_issue(ref, 42, state="closed")
+            await client.update_issue(ref, 42, labels=["bug", "triaged"])
+
+        Requires a GitHub token with ``issues:write`` scope.
+        """
+        return await self._patch(
+            f"/repos/{ref.owner}/{ref.name}/issues/{issue_number}",
+            json_data=fields,
+        )
+
+    async def create_pull_request(
+        self,
+        ref: RepositoryRef,
+        title: str,
+        head: str,
+        base: str,
+        body: str = "",
+    ) -> dict[str, Any]:
+        """Open a pull request.
+
+        Args:
+            head: The name of the branch where changes are implemented.
+            base: The name of the branch you want the changes pulled into.
+
+        Requires a GitHub token with ``pull_requests:write`` scope.
+        """
+        return await self._post(
+            f"/repos/{ref.owner}/{ref.name}/pulls",
+            json_data={"title": title, "head": head, "base": base, "body": body},
+        )
+
+    async def create_branch(self, ref: RepositoryRef, branch_name: str, sha: str) -> dict[str, Any]:
+        """Create a new branch from a given commit SHA.
+
+        Requires a GitHub token with ``contents:write`` scope.
+        """
+        return await self._post(
+            f"/repos/{ref.owner}/{ref.name}/git/refs",
+            json_data={"ref": f"refs/heads/{branch_name}", "sha": sha},
+        )
     #     )

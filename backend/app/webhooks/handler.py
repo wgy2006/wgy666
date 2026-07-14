@@ -22,8 +22,12 @@ class WebhookEventRecord:
     action: str
     repository: str
     issue_number: int
-    classification: IssueClassification | None
-    received_at: datetime
+    issue_title: str = ""
+    issue_state: str = "open"
+    issue_labels: list[str] = field(default_factory=list)
+    issue_author: str | None = None
+    classification: IssueClassification | None = None
+    received_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     raw_payload: dict = field(default_factory=dict)
 
 
@@ -114,6 +118,12 @@ def handle_issue_event(payload: dict, delivery_id: str | None = None) -> Webhook
     classifier = IssueClassifier()
     classification = classifier.classify(title=title, body=body, labels=labels)
 
+    issue_state = issue_data.get("state") or "open"
+    issue_author = (
+        issue_data.get("user", {}).get("login")
+        if isinstance(issue_data.get("user"), dict) else None
+    )
+
     # Record the event.
     record = WebhookEventRecord(
         event_id=delivery_id or "",
@@ -121,6 +131,10 @@ def handle_issue_event(payload: dict, delivery_id: str | None = None) -> Webhook
         action=action,
         repository=full_name,
         issue_number=issue_number,
+        issue_title=title,
+        issue_state=issue_state,
+        issue_labels=labels,
+        issue_author=issue_author,
         classification=classification,
         received_at=datetime.now(timezone.utc),
         raw_payload=payload,

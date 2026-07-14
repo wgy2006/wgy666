@@ -5,8 +5,8 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import './App.css'
 
-import { askAssistant, fetchFileContent as fetchFileContentApi, fetchWebhookConfig, fetchWebhookEvents, syncRepository } from './api'
-import type { AssistantChatMessage, AssistantChatResponse, CategorySummary, ClassifiedFile, RepositoryFileContent, RepositorySnapshot, WebhookEventItem } from './api'
+import { askAssistant, fetchFileContent as fetchFileContentApi, fetchWebhookConfig, fetchWebhookEventDetail, fetchWebhookEvents, syncRepository } from './api'
+import type { AssistantChatMessage, AssistantChatResponse, CategorySummary, ClassifiedFile, RepositoryFileContent, RepositorySnapshot, WebhookEventDetail, WebhookEventItem } from './api'
 import { ProjectStructureDetails } from './ProjectStructureDetails'
 import type { AnalysisSection, ProjectStructureAnalysis } from './ProjectStructureDetails'
 /**
@@ -32,6 +32,9 @@ function App() {
   const [webhookEvents, setWebhookEvents] = useState<WebhookEventItem[]>([])
   const [eventsLoading, setEventsLoading] = useState(false)
   const [analysisSection, setAnalysisSection] = useState<AnalysisSection | null>(null)
+  const [selectedEvent, setSelectedEvent] = useState<WebhookEventDetail | null>(null)
+  const [eventDetailLoading, setEventDetailLoading] = useState(false)
+  const [showIssueDetail, setShowIssueDetail] = useState(false)
 
   // -- Notification inbox --------------------------------------------------
 
@@ -58,6 +61,22 @@ function App() {
       fetchWebhookConfig().then(setWebhookConfig).catch(() => {})
     }
   }, [showSettings])
+
+  // -- Issue detail from inbox click ---------------------------------
+
+  async function handleInboxItemClick(event: WebhookEventItem) {
+    setSelectedEvent(null)
+    setShowIssueDetail(true)
+    setEventDetailLoading(true)
+    try {
+      const detail = await fetchWebhookEventDetail(event.event_id)
+      setSelectedEvent(detail)
+    } catch {
+      setSelectedEvent(null)
+    } finally {
+      setEventDetailLoading(false)
+    }
+  }
 
   // Auto-poll for new notifications (updates the badge count).
   useEffect(() => {
@@ -203,24 +222,25 @@ function App() {
               ) : (
                 <div className="inbox-list">
                   {webhookEvents.map((event) => (
-                    <div className="inbox-item" key={event.event_id}>
+                    <button
+                      className="inbox-item"
+                      key={event.event_id}
+                      onClick={() => handleInboxItemClick(event)}
+                    >
                       <div className="inbox-item-header">
                         <span className={`badge ${event.classification?.category ?? ''}`}>
                           {formatCategory(event.classification?.category ?? 'unknown')}
                         </span>
                         <span className="inbox-time">{formatTimeAgo(event.received_at)}</span>
                       </div>
-                      <a
-                        href={`https://github.com/${event.repository}/issues/${event.issue_number}`}
-                        target="_blank"
-                        className="inbox-item-title"
-                      >
+                      <span className="inbox-item-title">
                         {event.repository}#{event.issue_number}
-                      </a>
+                        {event.issue_title ? ` · ${event.issue_title.slice(0, 60)}` : ''}
+                      </span>
                       {event.classification?.reason && (
                         <p className="inbox-item-reason">{event.classification.reason}</p>
                       )}
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -246,6 +266,36 @@ function App() {
               <p className="settings-hint">
                 在 GitHub 仓库 Settings → Webhooks 中填入以上 URL 和 Secret 以启用自动监听。
               </p>
+            </section>
+          </div>
+        )}
+
+        {/* Issue detail modal */}
+        {showIssueDetail && (
+          <div className="modal-overlay" onClick={() => setShowIssueDetail(false)}>
+            <section className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
+              {eventDetailLoading ? (
+                <>
+                  <div className="modal-header">
+                    <h3>加载中...</h3>
+                    <button className="icon-button" onClick={() => setShowIssueDetail(false)}>&#x2715;</button>
+                  </div>
+                  <p className="muted" style={{ textAlign: 'center', padding: '20px 0' }}>正在加载 Issue 详情...</p>
+                </>
+              ) : selectedEvent ? (
+                <IssueDetailModal
+                  event={selectedEvent}
+                  onClose={() => setShowIssueDetail(false)}
+                />
+              ) : (
+                <>
+                  <div className="modal-header">
+                    <h3>无法加载 Issue 详情</h3>
+                    <button className="icon-button" onClick={() => setShowIssueDetail(false)}>&#x2715;</button>
+                  </div>
+                  <p className="muted" style={{ textAlign: 'center', padding: '20px 0' }}>该事件可能已过期。</p>
+                </>
+              )}
             </section>
           </div>
         )}
@@ -952,6 +1002,93 @@ function FileBrowser({ files, owner, name }: { files: ClassifiedFile[]; owner: s
         </div>
       )}
     </Panel>
+  )
+}
+
+// -- Issue Detail Modal (from UI prototype) --------------------------------
+
+type IssueDetailModalProps = {
+  event: WebhookEventDetail
+  onClose: () => void
+}
+
+function IssueDetailModal({ event, onClose }: IssueDetailModalProps) {
+  const classification = event.classification
+  const ghUrl = `https://github.com/${event.repository}/issues/${event.issue_number}`
+
+  return (
+    <div className="issue-detail">
+      <div className="modal-header">
+        <h3>Issue #{event.issue_number}</h3>
+        <button className="icon-button" onClick={onClose}>&#x2715;</button>
+      </div>
+
+      <div className="issue-detail-header">
+        <div className="issue-number">
+          #{event.issue_number} · {event.issue_state} · {event.issue_author ?? 'unknown'}
+          {event.issue_labels && event.issue_labels.length > 0 && (
+            <> · 标签: {event.issue_labels.join(', ')}</>
+          )}
+        </div>
+        <h3>{event.issue_title}</h3>
+      </div>
+
+      {classification && classification.category && (
+        <div className="classification-detail">
+          <h4>
+            Issue 智能分析结果
+            <span className={`badge ${classification.category}`}>
+              {formatCategory(classification.category)}
+            </span>
+            {classification.confidence != null && (
+              <span style={{ fontSize: '12px', color: '#6a747e', fontWeight: 400 }}>
+                置信度 {Math.round(classification.confidence * 100)}%
+              </span>
+            )}
+          </h4>
+          {classification.reason && (
+            <div className="classification-row">
+              <span className="label">分析理由</span>
+              <div className="value"><p>{classification.reason}</p></div>
+            </div>
+          )}
+          {classification.confidence != null && (
+            <div className="classification-row">
+              <span className="label">置信度</span>
+              <div className="value">
+                <div className="confidence-bar">
+                  <span style={{ width: `${Math.round(classification.confidence * 100)}%` }} />
+                </div>
+              </div>
+            </div>
+          )}
+          {classification.suggested_action && (
+            <div className="classification-row">
+              <span className="label">建议操作</span>
+              <div className="value"><p>{classification.suggested_action}</p></div>
+            </div>
+          )}
+          {classification.signals && classification.signals.length > 0 && (
+            <div className="classification-row">
+              <span className="label">识别信号</span>
+              <div className="value">
+                <div className="signal-list">
+                  {classification.signals.map((s) => (
+                    <span className="signal-tag" key={s}>{s}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="issue-detail-links">
+        <a className="ghost-button" href={ghUrl} target="_blank">
+          在 GitHub 上查看 #{event.issue_number}
+        </a>
+      </div>
+    </div>
   )
 }
 
