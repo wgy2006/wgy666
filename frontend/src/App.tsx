@@ -1,12 +1,14 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import type { FormEvent, ReactNode } from 'react'
-import { AlertCircle, Bell, Bot, Boxes, FileCode2, FileText, FolderGit, GitBranch, Loader2, Package, RefreshCw, Search, Send, Settings2, Star, TestTube2, UserRound, X } from 'lucide-react'
+import { AlertCircle, ArrowRight, Bell, Bot, Boxes, FileCode2, FileText, FolderGit, GitBranch, Loader2, Package, RefreshCw, Search, Send, Settings2, Star, TestTube2, UserRound, X } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import './App.css'
 
 import { askAssistant, fetchFileContent as fetchFileContentApi, fetchWebhookConfig, fetchWebhookEvents, syncRepository } from './api'
 import type { AssistantChatMessage, AssistantChatResponse, CategorySummary, ClassifiedFile, RepositoryFileContent, RepositorySnapshot, WebhookEventItem } from './api'
+import { ProjectStructureDetails } from './ProjectStructureDetails'
+import type { AnalysisSection, ProjectStructureAnalysis } from './ProjectStructureDetails'
 /**
  * App — Single-page sync-and-dashboard application.
  */
@@ -29,6 +31,7 @@ function App() {
   const [webhookConfig, setWebhookConfig] = useState<{ url: string; secret: string } | null>(null)
   const [webhookEvents, setWebhookEvents] = useState<WebhookEventItem[]>([])
   const [eventsLoading, setEventsLoading] = useState(false)
+  const [analysisSection, setAnalysisSection] = useState<AnalysisSection | null>(null)
 
   // -- Notification inbox --------------------------------------------------
 
@@ -79,6 +82,7 @@ function App() {
     try {
       const result = await syncRepository(form)
       setSnapshot(result)
+      setAnalysisSection(null)
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : '同步失败')
     } finally {
@@ -98,6 +102,10 @@ function App() {
     if (!snapshot) return null
     return analyzeProject(snapshot)
   }, [snapshot])
+
+  useEffect(() => {
+    if (analysisSection) window.scrollTo({ top: 0, behavior: 'auto' })
+  }, [analysisSection])
 
   return (
     <main className="workspace">
@@ -246,6 +254,16 @@ function App() {
           <EmptyState isLoading={isLoading} />
         ) : (
           <>
+            {analysisSection && projectAnalysis ? (
+              <ProjectStructureDetails
+                activeSection={analysisSection}
+                analysis={projectAnalysis}
+                repository={snapshot}
+                onBack={() => setAnalysisSection(null)}
+                onSelect={setAnalysisSection}
+              />
+            ) : (
+              <>
             {/* Repository header */}
             <header className="repo-header">
               <div>
@@ -296,6 +314,7 @@ function App() {
               <ProjectAnalysisPanel
                 analysis={projectAnalysis}
                 repositoryName={snapshot.identity.name}
+                onOpen={setAnalysisSection}
               />
             )}
 
@@ -343,6 +362,8 @@ function App() {
               owner={snapshot.identity.owner}
               name={snapshot.identity.name}
             />
+              </>
+            )}
           </>
         )}
       </section>
@@ -353,27 +374,9 @@ function App() {
 
 // -- Shared UI components --------------------------------------------------
 
-type ProjectDirectory = {
-  name: string
-  count: number
-  mainCategory: string
-}
+type ProjectAnalysis = ProjectStructureAnalysis
 
-type ProjectAnalysis = {
-  projectType: string
-  analyzedFileCount: number
-  analysisWarning: string | null
-  sourceCount: number
-  dependencyFiles: ClassifiedFile[]
-  testFiles: ClassifiedFile[]
-  docFiles: ClassifiedFile[]
-  configFiles: ClassifiedFile[]
-  entryFiles: ClassifiedFile[]
-  ciFiles: ClassifiedFile[]
-  topDirectories: ProjectDirectory[]
-}
-
-function ProjectAnalysisPanel({ analysis, repositoryName }: { analysis: ProjectAnalysis; repositoryName: string }) {
+function ProjectAnalysisPanel({ analysis, repositoryName, onOpen }: { analysis: ProjectAnalysis; repositoryName: string; onOpen: (section: AnalysisSection) => void }) {
   return (
     <Panel title="项目结构概览">
       <div className="analysis-layout">
@@ -402,15 +405,16 @@ function ProjectAnalysisPanel({ analysis, repositoryName }: { analysis: ProjectA
         </div>
 
         <div className="mindmap" aria-label="项目结构概览图">
-          <div className="mindmap-center">
+          <button className="mindmap-center" type="button" onClick={() => onOpen('architecture')}>
             <strong>{repositoryName}</strong>
             <span>结构概览</span>
-          </div>
-          <MindmapNode label="源码模块" value={analysis.sourceCount} icon={<FileCode2 size={16} />} />
-          <MindmapNode label="依赖配置" value={analysis.dependencyFiles.length + analysis.configFiles.length} icon={<Package size={16} />} />
-          <MindmapNode label="测试" value={analysis.testFiles.length} icon={<TestTube2 size={16} />} />
-          <MindmapNode label="文档" value={analysis.docFiles.length} icon={<FileText size={16} />} />
-          <MindmapNode label="CI/CD" value={analysis.ciFiles.length} icon={<Settings2 size={16} />} />
+            <small>查看完整架构图</small>
+          </button>
+          <MindmapNode label="源码模块" value={analysis.sourceCount} icon={<FileCode2 size={16} />} onClick={() => onOpen('architecture')} />
+          <MindmapNode label="依赖配置" value={analysis.dependencyFiles.length + analysis.configFiles.length} icon={<Package size={16} />} onClick={() => onOpen('dependencies')} />
+          <MindmapNode label="测试" value={analysis.testFiles.length} icon={<TestTube2 size={16} />} onClick={() => onOpen('quality')} />
+          <MindmapNode label="文档" value={analysis.docFiles.length} icon={<FileText size={16} />} onClick={() => onOpen('quality')} />
+          <MindmapNode label="CI/CD" value={analysis.ciFiles.length} icon={<Settings2 size={16} />} onClick={() => onOpen('quality')} />
         </div>
       </div>
 
@@ -419,18 +423,21 @@ function ProjectAnalysisPanel({ analysis, repositoryName }: { analysis: ProjectA
           icon={<Boxes size={18} />}
           title="主要目录"
           items={analysis.topDirectories.map((item) => `${item.name} · ${item.count} 个文件 · ${formatProjectCategory(item.mainCategory)}`)}
+          onClick={() => onOpen('directories')}
         />
         <AnalysisCard
           icon={<Package size={18} />}
           title="依赖文件"
           items={analysis.dependencyFiles.slice(0, 6).map((file) => file.path)}
           emptyText="暂未识别到依赖文件"
+          onClick={() => onOpen('dependencies')}
         />
         <AnalysisCard
           icon={<FileCode2 size={18} />}
           title="入口文件候选"
           items={analysis.entryFiles.slice(0, 6).map((file) => file.path)}
           emptyText="暂未识别到明显入口文件"
+          onClick={() => onOpen('entrypoints')}
         />
         <AnalysisCard
           icon={<TestTube2 size={18} />}
@@ -440,28 +447,30 @@ function ProjectAnalysisPanel({ analysis, repositoryName }: { analysis: ProjectA
             `文档文件：${analysis.docFiles.length} 个`,
             `配置文件：${analysis.configFiles.length} 个`,
           ]}
+          onClick={() => onOpen('quality')}
         />
       </div>
     </Panel>
   )
 }
 
-function MindmapNode({ icon, label, value }: { icon: ReactNode; label: string; value: number }) {
+function MindmapNode({ icon, label, value, onClick }: { icon: ReactNode; label: string; value: number; onClick: () => void }) {
   return (
-    <div className="mindmap-node">
+    <button className="mindmap-node" type="button" onClick={onClick}>
       {icon}
       <span>{label}</span>
       <strong>{value}</strong>
-    </div>
+    </button>
   )
 }
 
-function AnalysisCard({ icon, title, items, emptyText = '暂无数据' }: { icon: ReactNode; title: string; items: string[]; emptyText?: string }) {
+function AnalysisCard({ icon, title, items, emptyText = '暂无数据', onClick }: { icon: ReactNode; title: string; items: string[]; emptyText?: string; onClick: () => void }) {
   return (
-    <article className="analysis-card">
+    <button className="analysis-card" type="button" onClick={onClick}>
       <h4>
         {icon}
         {title}
+        <ArrowRight className="analysis-card-arrow" size={16} aria-hidden="true" />
       </h4>
       {items.length === 0 ? (
         <p className="muted">{emptyText}</p>
@@ -472,7 +481,7 @@ function AnalysisCard({ icon, title, items, emptyText = '暂无数据' }: { icon
           ))}
         </ul>
       )}
-    </article>
+    </button>
   )
 }
 
