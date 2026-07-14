@@ -56,6 +56,13 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = Field(default=60.0, validation_alias="LLM_TIMEOUT_SECONDS")
     assistant_max_tool_rounds: int = Field(default=3, validation_alias="ASSISTANT_MAX_TOOL_ROUNDS")
 
+    # --- Git Clone ---
+    git_clone_timeout_seconds: float = Field(
+        default=120.0,
+        validation_alias="GIT_CLONE_TIMEOUT_SECONDS",
+        description="Max seconds to wait for a shallow clone before timing out.",
+    )
+
     # --- RAG / Embeddings ---
     embedding_api_base_url: str = Field(default="https://models.sjtu.edu.cn/api/v1", validation_alias="EMBEDDING_API_BASE_URL")
     embedding_api_key: str | None = Field(default=None, validation_alias="EMBEDDING_API_KEY")

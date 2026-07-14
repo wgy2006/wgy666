@@ -2,6 +2,9 @@
 
 Fetches data from GitHub → classifies files → classifies issues →
 assembles a ``RepositorySnapshot``.
+
+File tree and source content are obtained via a shallow ``git clone``
+instead of the GitHub tree/content API to avoid rate-limit exhaustion.
 """
 
 from datetime import datetime, timezone
@@ -22,6 +25,7 @@ from app.schemas.repository import (
     SyncRepositoryRequest,
 )
 from app.services.file_classifier import FileClassifier
+from app.services.git_clone import GitCloneService
 from app.services.github_client import GitHubClient
 from app.services.issue_classifier import IssueClassifier
 from app.services.repository_url import parse_github_repository_url
@@ -39,24 +43,28 @@ class RepositorySyncService:
 
         Steps:
         1. Parse the GitHub URL.
-        2. Fetch repo metadata, languages, README, tree, issues, PRs, commits.
-        3. Classify files and issues.
-        4. Assemble and return the snapshot.
+        2. Fetch repo metadata, languages, README, issues, PRs, commits via API.
+        3. Clone the repo locally for file tree and source content.
+        4. Classify files and issues.
+        5. Assemble and return the snapshot.
         """
         ref = parse_github_repository_url(request.url)
+        clone_url = f"https://github.com/{ref.owner}/{ref.name}.git"
+
         async with GitHubClient() as client:
             repository = await client.get_repository(ref)
             languages = await client.get_languages(ref)
             readme = await client.get_readme(ref)
             branch = repository.get("default_branch") or "main"
-            tree = await client.get_tree(ref, branch)
             issues = await client.get_issues(ref, request.max_issues)
             pulls = await client.get_pull_requests(ref, request.max_pull_requests)
             commits = await client.get_commits(ref, request.max_commits)
 
-        files, file_categories = self.file_classifier.classify_many(tree, request.max_tree_items)
-        async with GitHubClient() as client:
-            source_contents = await self._fetch_source_contents(client, ref, branch, files)
+        async with GitCloneService(clone_url) as git_clone:
+            tree = git_clone.walk_files(limit=request.max_tree_items)
+            files, file_categories = self.file_classifier.classify_many(tree, request.max_tree_items)
+            source_contents = self._read_source_contents(git_clone, files)
+
         classified_issues = [self._map_issue(issue) for issue in issues]
         issue_categories = self.issue_classifier.summarize(
             [issue.classification.category for issue in classified_issues]
@@ -92,14 +100,12 @@ class RepositorySyncService:
             synced_at=datetime.now(timezone.utc),
         )
 
-    async def _fetch_source_contents(
+    def _read_source_contents(
         self,
-        client: GitHubClient,
-        ref,
-        branch: str,
+        git_clone: GitCloneService,
         files: list[ClassifiedFile],
     ) -> list[RepositoryFileContent]:
-        """Fetch source files for persistent storage and RAG indexing.
+        """Read source files from the local git clone for storage and RAG indexing.
 
         All file categories except ASSET (images/binaries) and DATA
         (large datasets) are indexed. The per-call cap is controlled by
@@ -124,10 +130,8 @@ class RepositorySyncService:
 
         contents: list[RepositoryFileContent] = []
         for file in selected:
-            content, truncated = await client.get_file_content(
-                ref,
+            content, truncated = git_clone.read_file(
                 file.path,
-                branch,
                 settings.rag_max_source_file_bytes,
             )
             if content is None or not content.strip():
