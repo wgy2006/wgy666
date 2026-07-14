@@ -666,6 +666,17 @@ button,
   border: 1px solid #d9e0e6;
   background: #ffffff;
   box-shadow: 0 8px 22px rgba(21, 37, 54, 0.06);
+  color: inherit;
+  text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.mindmap-center:hover,
+.mindmap-node:hover,
+.analysis-card:hover {
+  border-color: #8db1dc;
+  box-shadow: 0 10px 24px rgba(21, 37, 54, 0.1);
+  transform: translateY(-1px);
 }
 
 .mindmap-center {
@@ -675,6 +686,7 @@ button,
   place-content: center;
   text-align: center;
   padding: 14px;
+  width: 100%;
 }
 
 .mindmap-center strong {
@@ -688,6 +700,13 @@ button,
   font-size: 12px;
 }
 
+.mindmap-center small {
+  margin-top: 5px;
+  color: #1555a0;
+  font-size: 10px;
+  font-weight: 700;
+}
+
 .mindmap-node {
   min-height: 76px;
   display: grid;
@@ -696,6 +715,7 @@ button,
   gap: 6px;
   padding: 12px;
   color: #1f6feb;
+  width: 100%;
 }
 
 .mindmap-node strong {
@@ -715,6 +735,16 @@ button,
   border-radius: 8px;
   padding: 14px;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 150px;
+  background: #ffffff;
+  color: inherit;
+  text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 }
 
 .analysis-card h4 {
@@ -723,6 +753,11 @@ button,
   gap: 8px;
   font-size: 14px;
   margin-bottom: 10px;
+}
+
+.analysis-card-arrow {
+  margin-left: auto;
+  color: #6a747e !important;
 }
 
 .analysis-card h4 svg {
