@@ -1083,6 +1083,13 @@ function IssueDetailModal({ event, onClose }: IssueDetailModalProps) {
         </div>
       )}
 
+      {classification?.auto_reply_draft && (
+        <div className="classification-detail auto-reply-section">
+          <h4>🤖 自动回复草稿</h4>
+          <div className="issue-body">{classification.auto_reply_draft}</div>
+        </div>
+      )}
+
       <div className="issue-detail-links">
         <a className="ghost-button" href={ghUrl} target="_blank">
           在 GitHub 上查看 #{event.issue_number}

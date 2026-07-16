@@ -168,6 +168,7 @@ export type WebhookClassification = {
   reason: string | null
   suggested_action?: string | null
   signals?: string[]
+  auto_reply_draft?: string | null
 }
 
 export type WebhookEventItem = {

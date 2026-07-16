@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Header, HTTPException, Request
 
 from app.core.config import settings
+from app.schemas.issue import IssueClassification
 from app.services.auto_fix import AutoFixService
 from app.webhooks.auto_reply import IssueAutoReplyService
 from app.webhooks.handler import dispatch_event, verify_signature, webhook_event_store
@@ -132,13 +133,7 @@ async def list_webhook_events(limit: int = 20) -> list[dict]:
             "issue_state": e.issue_state,
             "issue_author": e.issue_author,
             "issue_labels": e.issue_labels,
-            "classification": {
-                "category": e.classification.category.value if e.classification else None,
-                "confidence": e.classification.confidence if e.classification else None,
-                "reason": e.classification.reason if e.classification else None,
-                "suggested_action": e.classification.suggested_action if e.classification else None,
-                "signals": e.classification.signals if e.classification else None,
-            },
+            "classification": _classification_dict(e.classification),
             "received_at": e.received_at.isoformat(),
         }
         for e in events[:limit]
@@ -168,12 +163,20 @@ async def get_webhook_event(event_id: str) -> dict:
         "issue_body": issue_data.get("body"),
         "issue_comments_count": issue_data.get("comments", 0),
         "issue_html_url": issue_data.get("html_url"),
-        "classification": {
-            "category": record.classification.category.value if record.classification else None,
-            "confidence": record.classification.confidence if record.classification else None,
-            "reason": record.classification.reason if record.classification else None,
-            "suggested_action": record.classification.suggested_action if record.classification else None,
-            "signals": record.classification.signals if record.classification else [],
-        },
+        "classification": _classification_dict(record.classification),
         "received_at": record.received_at.isoformat(),
+    }
+
+
+def _classification_dict(c: IssueClassification | None) -> dict | None:
+    """Convert an IssueClassification to a JSON-safe dict."""
+    if c is None:
+        return None
+    return {
+        "category": c.category.value,
+        "confidence": c.confidence,
+        "reason": c.reason,
+        "suggested_action": c.suggested_action,
+        "signals": c.signals,
+        "auto_reply_draft": c.auto_reply_draft,
     }
