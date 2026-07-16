@@ -73,6 +73,20 @@ class Settings(BaseSettings):
     embedding_api_key: str | None = Field(default=None, validation_alias="EMBEDDING_API_KEY")
     embedding_model: str = Field(default="text-embedding-3-small", validation_alias="EMBEDDING_MODEL")
     embedding_dimensions: int = Field(default=1536, validation_alias="EMBEDDING_DIMENSIONS")
+
+    # Local embedding (sentence-transformers) — off by default.
+    # When enabled, the local model takes priority over the remote API.
+    local_embedding_enabled: bool = Field(
+        default=False,
+        validation_alias="LOCAL_EMBEDDING_ENABLED",
+        description="Set to true to use a local sentence-transformers model instead of a remote embedding API.",
+    )
+    local_embedding_model: str = Field(
+        default="all-MiniLM-L6-v2",
+        validation_alias="LOCAL_EMBEDDING_MODEL",
+        description="HuggingFace sentence-transformers model name. all-MiniLM-L6-v2 is ~80 MB / 384 dims.",
+    )
+
     rag_max_source_files: int = Field(default=500, validation_alias="RAG_MAX_SOURCE_FILES")
     rag_max_source_file_bytes: int = Field(default=200000, validation_alias="RAG_MAX_SOURCE_FILE_BYTES")
     rag_chunk_size: int = Field(default=1800, validation_alias="RAG_CHUNK_SIZE")
