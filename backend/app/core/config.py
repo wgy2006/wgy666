@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     github_api_base_url: str = "https://api.github.com"
     github_api_version: str = "2022-11-28"
     request_timeout_seconds: float = 200
+    github_request_retries: int = Field(
+        default=3,
+        validation_alias="GITHUB_REQUEST_RETRIES",
+        description="Max retries (with exponential backoff) for transient GitHub API failures.",
+    )
 
     # --- Database ---
     database_url: str | None = Field(
@@ -56,11 +61,32 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = Field(default=60.0, validation_alias="LLM_TIMEOUT_SECONDS")
     assistant_max_tool_rounds: int = Field(default=3, validation_alias="ASSISTANT_MAX_TOOL_ROUNDS")
 
+    # --- Git Clone ---
+    git_clone_timeout_seconds: float = Field(
+        default=120.0,
+        validation_alias="GIT_CLONE_TIMEOUT_SECONDS",
+        description="Max seconds to wait for a shallow clone before timing out.",
+    )
+
     # --- RAG / Embeddings ---
     embedding_api_base_url: str = Field(default="https://models.sjtu.edu.cn/api/v1", validation_alias="EMBEDDING_API_BASE_URL")
     embedding_api_key: str | None = Field(default=None, validation_alias="EMBEDDING_API_KEY")
     embedding_model: str = Field(default="text-embedding-3-small", validation_alias="EMBEDDING_MODEL")
     embedding_dimensions: int = Field(default=1536, validation_alias="EMBEDDING_DIMENSIONS")
+
+    # Local embedding (sentence-transformers) — off by default.
+    # When enabled, the local model takes priority over the remote API.
+    local_embedding_enabled: bool = Field(
+        default=False,
+        validation_alias="LOCAL_EMBEDDING_ENABLED",
+        description="Set to true to use a local sentence-transformers model instead of a remote embedding API.",
+    )
+    local_embedding_model: str = Field(
+        default="all-MiniLM-L6-v2",
+        validation_alias="LOCAL_EMBEDDING_MODEL",
+        description="HuggingFace sentence-transformers model name. all-MiniLM-L6-v2 is ~80 MB / 384 dims.",
+    )
+
     rag_max_source_files: int = Field(default=500, validation_alias="RAG_MAX_SOURCE_FILES")
     rag_max_source_file_bytes: int = Field(default=200000, validation_alias="RAG_MAX_SOURCE_FILE_BYTES")
     rag_chunk_size: int = Field(default=1800, validation_alias="RAG_CHUNK_SIZE")

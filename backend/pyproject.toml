@@ -11,6 +11,8 @@ dependencies = [
     "psycopg[binary]>=3.3.4",
     "pydantic-settings>=2.14.2",
     "sqlalchemy>=2.0.51",
+    "sentence-transformers>=3.0.0",
+    "torch>=2.0.0",
     "uvicorn[standard]>=0.50.1",
 ]
 
