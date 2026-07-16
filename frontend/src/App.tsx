@@ -1015,6 +1015,21 @@ type IssueDetailModalProps = {
 function IssueDetailModal({ event, onClose }: IssueDetailModalProps) {
   const classification = event.classification
   const ghUrl = `https://github.com/${event.repository}/issues/${event.issue_number}`
+  const cat = classification?.category ?? ''
+
+  const categoryLabels: Record<string, { icon: string; title: string }> = {
+    bug:           { icon: '🐛', title: '缺陷报告' },
+    feature_request: { icon: '💡', title: '功能请求' },
+    question:      { icon: '❓', title: '使用咨询' },
+    documentation: { icon: '📖', title: '文档问题' },
+    duplicate:     { icon: '🔁', title: '重复 Issue' },
+    info_needed:   { icon: '📋', title: '信息不足' },
+    invalid:       { icon: '🚫', title: '无效 Issue' },
+    maintenance:   { icon: '🔧', title: '维护事项' },
+    unknown:       { icon: '🤔', title: '未分类' },
+  }
+
+  const labelInfo = categoryLabels[cat]
 
   return (
     <div className="issue-detail">
@@ -1036,12 +1051,12 @@ function IssueDetailModal({ event, onClose }: IssueDetailModalProps) {
       {classification && classification.category && (
         <div className="classification-detail">
           <h4>
-            Issue 智能分析结果
-            <span className={`badge ${classification.category}`}>
-              {formatCategory(classification.category)}
+            {labelInfo?.icon ?? ''} {labelInfo?.title ?? formatCategory(cat)}
+            <span className={`badge ${cat}`}>
+              {formatCategory(cat)}
             </span>
             {classification.confidence != null && (
-              <span style={{ fontSize: '12px', color: '#6a747e', fontWeight: 400 }}>
+              <span className="confidence-text">
                 置信度 {Math.round(classification.confidence * 100)}%
               </span>
             )}
@@ -1062,12 +1077,7 @@ function IssueDetailModal({ event, onClose }: IssueDetailModalProps) {
               </div>
             </div>
           )}
-          {classification.suggested_action && (
-            <div className="classification-row">
-              <span className="label">建议操作</span>
-              <div className="value"><p>{classification.suggested_action}</p></div>
-            </div>
-          )}
+
           {classification.signals && classification.signals.length > 0 && (
             <div className="classification-row">
               <span className="label">识别信号</span>
@@ -1083,8 +1093,9 @@ function IssueDetailModal({ event, onClose }: IssueDetailModalProps) {
         </div>
       )}
 
+      {/* ── LLM auto-reply draft (separate section) ── */}
       {classification?.auto_reply_draft && (
-        <div className="classification-detail auto-reply-section">
+        <div className="auto-reply-section">
           <h4>🤖 自动回复草稿</h4>
           <div className="issue-body">{classification.auto_reply_draft}</div>
         </div>
@@ -1092,7 +1103,7 @@ function IssueDetailModal({ event, onClose }: IssueDetailModalProps) {
 
       <div className="issue-detail-links">
         <a className="ghost-button" href={ghUrl} target="_blank">
-          在 GitHub 上查看 #{event.issue_number}
+          ↗ 在 GitHub 上查看 #{event.issue_number}
         </a>
       </div>
     </div>
