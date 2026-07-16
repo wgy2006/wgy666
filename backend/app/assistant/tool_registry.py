@@ -146,7 +146,46 @@ class RepositoryToolRegistry:
                     "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
                 },
             },
+            self._function("read_file", "Read indexed source code with optional 1-based line range.", {
+                "path": {"type": "string"}, "start_line": {"type": "integer", "minimum": 1}, "end_line": {"type": "integer", "minimum": 1},
+            }, ["path"]),
+            self._function("read_source_context", "Read indexed source around a 1-based line number.", {
+                "path": {"type": "string"}, "line": {"type": "integer", "minimum": 1}, "before": {"type": "integer", "minimum": 0}, "after": {"type": "integer", "minimum": 0},
+            }, ["path", "line"]),
+            self._function("grep_code", "Search indexed source text or a regular expression.", {
+                "pattern": {"type": "string"}, "path": {"type": "string"}, "regex": {"type": "boolean"}, "file_type": {"type": "string"},
+            }, ["pattern"]),
+            self._function("find_symbol_definition", "Find likely function, class, or variable definitions in indexed source.", {
+                "symbol": {"type": "string"}, "path": {"type": "string"},
+            }, ["symbol"]),
+            self._function("find_symbol_references", "Find source lines that reference a symbol.", {
+                "symbol": {"type": "string"}, "path": {"type": "string"},
+            }, ["symbol"]),
+            self._function("vector_search", "Run semantic search over repository knowledge chunks.", {
+                "query": {"type": "string"}, "limit": {"type": "integer", "minimum": 1, "maximum": 20}, "filters": {"type": "object"},
+            }, ["query"]),
+            self._function("resolve_source_path", "Resolve a RAG source_path to an indexed repository file.", {
+                "source_path": {"type": "string"},
+            }, ["source_path"]),
+            self._function("working_tree_diff", "Show current uncommitted Git changes in the application workspace.", {}),
+            self._function("run_tests", "Run pytest in the application workspace and return its output.", {
+                "path": {"type": "string"}, "test_name": {"type": "string"},
+            }),
+            self._function("embedding_status", "Report the configured embedding backend and vector dimensions.", {}),
         ]
+
+    def _function(self, name: str, description: str, properties: dict[str, Any], required: list[str] | None = None) -> dict[str, Any]:
+        return {
+            "type": "function",
+            "function": {
+                "name": name,
+                "description": description,
+                "parameters": {
+                    "type": "object", "properties": properties,
+                    "required": required or [], "additionalProperties": False,
+                },
+            },
+        }
 
     def execute(self, name: str, raw_arguments: str | dict[str, Any] | None, snapshot: RepositorySnapshot) -> ToolResult:
         """Execute a registered tool against the current repository snapshot."""
@@ -178,6 +217,26 @@ class RepositoryToolRegistry:
             )
         if name == "recent_activity":
             return self.tools.recent_activity(snapshot)
+        if name == "read_file":
+            return self.tools.read_file(snapshot, arguments["path"], arguments.get("start_line"), arguments.get("end_line"))
+        if name == "read_source_context":
+            return self.tools.read_source_context(snapshot, arguments["path"], arguments["line"], arguments.get("before", 5), arguments.get("after", 5))
+        if name == "grep_code":
+            return self.tools.grep_code(snapshot, arguments["pattern"], arguments.get("path"), arguments.get("regex", False), arguments.get("file_type"))
+        if name == "find_symbol_definition":
+            return self.tools.find_symbol(snapshot, arguments["symbol"], False, arguments.get("path"))
+        if name == "find_symbol_references":
+            return self.tools.find_symbol(snapshot, arguments["symbol"], True, arguments.get("path"))
+        if name == "vector_search":
+            return self.tools.vector_search(snapshot, arguments["query"], arguments.get("limit", 5), arguments.get("filters"))
+        if name == "resolve_source_path":
+            return self.tools.resolve_source_path(snapshot, arguments["source_path"])
+        if name == "working_tree_diff":
+            return self.tools.working_tree_diff(snapshot)
+        if name == "run_tests":
+            return self.tools.run_tests(snapshot, arguments.get("path"), arguments.get("test_name"))
+        if name == "embedding_status":
+            return self.tools.embedding_status(snapshot)
 
         raise ValueError(f"Unknown assistant tool: {name}")
 
