@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.schemas.repository import RepositoryListItem, RepositorySnapshot, SyncRepositoryRequest
 from app.services.github_client import GitHubClientError
+from app.services.git_clone import GitCloneError
 from app.services.repository_sync import RepositorySyncService
 from app.storage import repository_store
 
@@ -31,6 +32,11 @@ async def sync_repository(payload: SyncRepositoryRequest) -> RepositorySnapshot:
         elif exc.status_code == 504:
             messages.append("提示：请求 GitHub API 超时，仓库可能过大或网络不稳定")
         raise HTTPException(status_code=exc.status_code, detail=" | ".join(messages)) from exc
+    except GitCloneError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=str(exc) + " | 提示：git clone 失败，通常是网络问题，请检查服务器能否访问 GitHub 或稍后重试",
+        ) from exc
 
     repository_store.save(snapshot)
     return snapshot

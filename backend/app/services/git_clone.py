@@ -109,31 +109,51 @@ class GitCloneService:
     # -- Internal ------------------------------------------------------------
 
     async def _clone(self) -> None:
-        """Run ``git clone --depth=<N> <url> <workdir>``."""
+        """Run ``git clone --depth=<N> <url> <workdir>`` with retry."""
         timeout = settings.git_clone_timeout_seconds
-        process = await asyncio.create_subprocess_exec(
-            "git",
-            "clone",
-            "--depth",
-            str(self._depth),
-            self._clone_url,
-            self._workdir,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        try:
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
-        except asyncio.TimeoutError:
-            process.kill()
-            raise GitCloneError(
-                f"git clone timed out after {timeout}s for {self._clone_url}"
-            ) from None
+        max_retries = 3
+        last_error: str | None = None
 
-        if process.returncode != 0:
-            message = stderr.decode("utf-8", errors="replace").strip()
-            raise GitCloneError(
-                f"git clone failed for {self._clone_url}: {message}"
+        for attempt in range(max_retries + 1):
+            process = await asyncio.create_subprocess_exec(
+                "git",
+                "clone",
+                "--depth",
+                str(self._depth),
+                self._clone_url,
+                self._workdir,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
+            try:
+                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
+            except asyncio.TimeoutError:
+                process.kill()
+                last_error = f"git clone timed out after {timeout}s"
+                if attempt < max_retries:
+                    delay = 3 * (attempt + 1)
+                    await asyncio.sleep(delay)
+                    continue
+                raise GitCloneError(f"{last_error} for {self._clone_url}") from None
+
+            if process.returncode == 0:
+                return  # success
+
+            message = stderr.decode("utf-8", errors="replace").strip()
+            last_error = f"git clone failed: {message}"
+
+            # Non-retriable: auth error, repo not found
+            if "Authentication failed" in message or "Repository not found" in message or "not found" in message:
+                raise GitCloneError(f"{last_error} for {self._clone_url}")
+
+            if attempt < max_retries:
+                delay = 3 * (attempt + 1)
+                await asyncio.sleep(delay)
+                continue
+
+        raise GitCloneError(
+            f"{last_error} for {self._clone_url} (after {max_retries} retries)"
+        )
 
 
 def _read_bytes(path: str, max_bytes: int) -> bytes:
