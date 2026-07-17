@@ -307,6 +307,16 @@
   align-items: start;
 }
 
+.directory-view-layout,
+.quality-detail-layout {
+  align-items: stretch;
+}
+
+.directory-view-layout > .structure-panel,
+.quality-detail-layout > .structure-panel {
+  height: 100%;
+}
+
 .directory-tree-panel {
   container-type: inline-size;
 }
@@ -689,19 +699,23 @@
 }
 
 .dependency-map {
+  --dependency-connector: #b7cde5;
   display: grid;
-  grid-template-columns: minmax(150px, 0.45fr) minmax(0, 1.55fr);
-  gap: 44px;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  gap: 48px;
   align-items: center;
-  padding: 18px;
+  min-height: 500px;
+  padding: 20px 24px;
 }
 
 .dependency-source {
+  position: relative;
   display: grid;
   justify-items: center;
   gap: 7px;
   min-width: 0;
   width: 100%;
+  max-width: 220px;
   border: 1px solid #9dbce7;
   border-radius: 8px;
   background: #eef6ff;
@@ -710,34 +724,191 @@
   text-align: center;
 }
 
-.dependency-source span {
+.dependency-source::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  width: 48px;
+  border-top: 2px solid var(--dependency-connector);
+}
+
+.dependency-source-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 7px;
+  background: #ffffff;
+}
+
+.dependency-source strong {
+  color: #182027;
+  font-size: 18px;
+}
+
+.dependency-source small {
+  color: #52606d;
+  font-size: 11px;
+}
+
+.dependency-source-files {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.dependency-source-files span {
   display: block;
   max-width: 100%;
+  border-radius: 5px;
+  background: #ffffff;
   color: #6a747e;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.45;
+  padding: 4px 6px;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 
 .dependency-groups {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 12px;
+  min-width: 0;
 }
 
-.dependency-groups article {
+.dependency-groups::before {
+  content: '';
+  position: absolute;
+  top: 52px;
+  bottom: 52px;
+  left: -24px;
+  border-left: 2px solid var(--dependency-connector);
+}
+
+.dependency-group-card {
+  --dependency-accent: #18794e;
+  --dependency-accent-soft: #e8f5ef;
+  position: relative;
   display: grid;
-  gap: 7px;
-  border-top: 3px solid #18a058;
-  background: #f7faf8;
+  grid-template-columns: minmax(150px, 0.32fr) minmax(0, 0.68fr);
+  gap: 16px;
+  align-items: start;
+  min-width: 0;
+  min-height: 104px;
+  box-sizing: border-box;
+  border: 1px solid #d9e3ec;
+  border-left: 3px solid var(--dependency-accent);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 14px 16px;
+  box-shadow: 0 6px 16px rgba(21, 37, 54, 0.05);
+}
+
+.dependency-group-card::before,
+.dependency-group-empty::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 100%;
+  width: 24px;
+  border-top: 2px solid var(--dependency-connector);
+}
+
+.dependency-group-card[data-kind='runtime_framework'],
+.dependency-group-card[data-kind='development'] {
+  --dependency-accent: #2d6cdf;
+  --dependency-accent-soft: #eaf3ff;
+}
+
+.dependency-group-heading {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.dependency-group-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 7px;
+  background: var(--dependency-accent-soft);
+  color: var(--dependency-accent);
+}
+
+.dependency-group-heading > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.dependency-group-heading strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dependency-group-heading small {
+  color: #6a747e;
+  font-size: 10px;
+}
+
+.dependency-package-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dependency-package-list span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  border-radius: 5px;
+  background: #f0f4f7;
+  color: #52606d;
+  font-size: 11px;
+  padding: 5px 7px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dependency-package-list svg {
+  flex: 0 0 auto;
+  color: var(--dependency-accent);
+}
+
+.dependency-group-empty {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 90px;
+  border: 1px dashed #c7d5e2;
+  border-radius: 8px;
+  color: #6a747e;
   padding: 14px;
 }
 
-.dependency-groups article span {
-  color: #52606d;
-  font-size: 12px;
-  overflow-wrap: anywhere;
+.dependency-group-empty > div {
+  display: grid;
+  gap: 3px;
+}
+
+.dependency-group-empty span {
+  font-size: 11px;
 }
 
 .startup-flow {
@@ -949,8 +1120,28 @@
 
   .architecture-root::after,
   .architecture-branches::before,
-  .architecture-branch::before {
+  .architecture-branch::before,
+  .dependency-source::after,
+  .dependency-groups::before,
+  .dependency-group-card::before,
+  .dependency-group-empty::before {
     display: none;
+  }
+
+  .dependency-source {
+    grid-template-columns: 40px minmax(0, 1fr);
+    justify-items: start;
+    max-width: none;
+    text-align: left;
+  }
+
+  .dependency-source-icon {
+    grid-row: 1 / span 3;
+  }
+
+  .dependency-source-files {
+    grid-column: 2;
+    justify-content: flex-start;
   }
 
   .quality-metrics {
@@ -969,8 +1160,7 @@
 
 @media (max-width: 1100px) {
   .pipeline-grid,
-  .startup-flow,
-  .dependency-groups {
+  .startup-flow {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1057,7 +1247,6 @@
 
   .pipeline-grid,
   .startup-flow,
-  .dependency-groups,
   .quality-metrics {
     grid-template-columns: 1fr;
   }
@@ -1069,5 +1258,23 @@
   .confidence-chip {
     grid-column: 3;
     justify-self: start;
+  }
+
+  .dependency-map {
+    padding: 4px;
+  }
+
+  .dependency-source {
+    grid-template-columns: 38px minmax(0, 1fr);
+    padding: 14px;
+  }
+
+  .dependency-source small,
+  .dependency-source-files {
+    grid-column: 2;
+  }
+
+  .dependency-group-card {
+    grid-template-columns: 1fr;
   }
 }
