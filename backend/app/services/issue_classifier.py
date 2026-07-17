@@ -184,9 +184,10 @@ class IssueClassifier:
                 ],
                 temperature=0.3,
                 max_tokens=500,
-                response_format={"type": "json_object"},
             )
-        except Exception:
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("LLM classification failed: %s", exc)
             return None
 
         raw = (completion.choices[0].message.content or "").strip()

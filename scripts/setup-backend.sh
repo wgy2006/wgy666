@@ -96,7 +96,7 @@ if [[ "${start_choice:-2}" == "1" ]]; then
 
     echo ""
     echo "[INFO] 启动后端服务器 (--host $HOST)..."
-    cd backend
+    cd ../backend
     exec uv run uvicorn app.main:app --host "$HOST" --reload --port 8000
 else
     echo ""
