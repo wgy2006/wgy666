@@ -75,17 +75,42 @@ except ImportError:
 " 2>/dev/null || echo "    [WARN] embedding 验证跳过"
 fi
 
-# ── 6. 完成 ───────────────────────────────────────────────────────────────
+# ── 6. 询问是否启动后端 ──────────────────────────────────────────────────
 echo ""
-echo "========================================"
-echo "  后端初始化完成"
-echo "========================================"
-echo ""
-echo "启动开发服务器："
-echo "  cd backend"
-echo "  uv run uvicorn app.main:app --reload --port 8000"
-echo ""
-echo "运行测试："
-echo "  cd backend"
-echo "  uv run pytest -v"
-echo "========================================"
+echo "[询问] 是否现在启动后端开发服务器？"
+echo "  1) 是"
+echo "  2) 否"
+read -r -p "  请选择 [1/2] (默认 2): " start_choice
+
+if [[ "${start_choice:-2}" == "1" ]]; then
+    echo ""
+    echo "[询问] 是否开放给外网？（--host 0.0.0.0，否则仅 127.0.0.1）"
+    echo "  1) 开放（外网可访问）"
+    echo "  2) 仅本地"
+    read -r -p "  请选择 [1/2] (默认 2): " host_choice
+
+    HOST="127.0.0.1"
+    if [[ "${host_choice:-2}" == "1" ]]; then
+        HOST="0.0.0.0"
+    fi
+
+    echo ""
+    echo "[INFO] 启动后端服务器 (--host $HOST)..."
+    cd backend
+    exec uv run uvicorn app.main:app --host "$HOST" --reload --port 8000
+else
+    echo ""
+    echo "========================================"
+    echo "  后端初始化完成"
+    echo "========================================"
+    echo ""
+    echo "手动启动（仅本地）："
+    echo "  cd backend && uv run uvicorn app.main:app --reload --port 8000"
+    echo ""
+    echo "手动启动（开放外网）："
+    echo "  cd backend && uv run uvicorn app.main:app --host 0.0.0.0 --reload --port 8000"
+    echo ""
+    echo "运行测试："
+    echo "  cd backend && uv run pytest -v"
+    echo "========================================"
+fi
