@@ -120,6 +120,7 @@ class GitCloneService:
             shutil.rmtree(self._workdir, ignore_errors=True)
 
         for attempt in range(max_retries + 1):
+            process = await asyncio.create_subprocess_exec(
                 "git",
                 "clone",
                 "--depth",
