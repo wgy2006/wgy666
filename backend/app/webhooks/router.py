@@ -225,6 +225,38 @@ async def reply_to_webhook_event(event_id: str) -> dict:
     }
 
 
+@router.post("/events/{event_id}/fix")
+async def fix_webhook_event(event_id: str) -> dict:
+    """Generate and submit an auto-fix PR for a bug issue using AgentHarness."""
+    record = webhook_event_store.get(event_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Event not found")
+    if not record.classification:
+        raise HTTPException(status_code=400, detail="Event has no classification")
+
+    from app.services.auto_fix import AutoFixService
+
+    owner, name = record.repository.split("/", 1)
+    fixer = AutoFixService()
+    result = await fixer.fix_issue(
+        owner=owner, name=name,
+        issue_number=record.issue_number,
+        issue_title=record.issue_title,
+        issue_body=record.raw_payload.get("issue", {}).get("body"),
+        labels=record.issue_labels,
+    )
+
+    if not result.success:
+        raise HTTPException(status_code=502, detail=result.error or "Auto-fix failed")
+
+    return {
+        "status": "ok",
+        "pr_url": result.pr_url,
+        "branch_name": result.branch_name,
+        "event_id": event_id,
+    }
+
+
 def _classification_dict(c: IssueClassification | None) -> dict | None:
     """Convert an IssueClassification to a JSON-safe dict."""
     if c is None:
