@@ -6,6 +6,7 @@ import { AlertCircle, FileCode2, Loader2, X } from 'lucide-react'
 
 import { fetchFileContent as fetchFileContentApi } from '../api'
 import type { ClassifiedFile, RepositoryFileContent } from '../api'
+import '../component-css/FileBrowser.css'
 import { formatCategory } from '../utils/format'
 import { Panel } from './MetricCard'
 

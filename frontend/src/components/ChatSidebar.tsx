@@ -11,6 +11,7 @@ import remarkGfm from 'remark-gfm'
 
 import { askAssistant } from '../api'
 import type { AssistantChatMessage, AssistantChatResponse, RepositorySnapshot } from '../api'
+import '../component-css/ChatSidebar.css'
 
 type ChatThreadMessage = AssistantChatMessage & {
   toolCalls?: AssistantChatResponse['tool_calls']

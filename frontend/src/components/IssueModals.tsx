@@ -9,6 +9,7 @@ import { useState } from 'react'
 import { postWebhookReply } from '../api'
 import type { GitHubIssue, WebhookEventDetail } from '../api'
 import { formatCategory, formatDate } from '../utils/format'
+import '../component-css/IssueModals.css'
 
 /* ── IssueDetailModal ─────────────────────────────────────────────────── */
 

@@ -10,6 +10,7 @@ import {
 import type { AnalysisSection, ProjectStructureAnalysis } from '../ProjectStructureDetails'
 import { formatProjectCategory } from '../utils/format'
 import { Panel } from './MetricCard'
+import '../component-css/ProjectAnalysisPanel.css'
 
 /* ── MindmapNode ──────────────────────────────────────────────────────── */
 

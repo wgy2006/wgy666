@@ -5,6 +5,7 @@
 import type { ReactNode } from 'react'
 import { formatCategory } from '../utils/format'
 import type { CategorySummary } from '../api'
+import '../component-css/MetricCard.css'
 
 /* ── Metric ───────────────────────────────────────────────────────────── */
 

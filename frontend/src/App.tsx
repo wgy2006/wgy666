@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import './App.css'
 
-import { fetchProjectStructure, fetchWebhookConfig, fetchWebhookEventDetail, fetchWebhookEvents, syncRepository } from './api'
+import { fetchProjectStructure, fetchWebhookConfig, fetchWebhookEventDetail, fetchWebhookEvents, syncRepository, updateWebhookEvent } from './api'
 import type { GitHubIssue, RepositorySnapshot, WebhookEventDetail, WebhookEventItem } from './api'
 
 import { ProjectStructureDetails } from './ProjectStructureDetails'
@@ -104,6 +104,15 @@ function App() {
     } finally {
       setEventDetailLoading(false)
     }
+  }
+
+  async function handleReadEvent(eventId: string) {
+    try {
+      await updateWebhookEvent(eventId, 'read')
+      setWebhookEvents(prev => prev.map(e =>
+        e.event_id === eventId ? { ...e } : e
+      ))
+    } catch { /* ignore */ }
   }
 
   async function handleDeleteEvent(eventId: string) {
@@ -262,9 +271,11 @@ function App() {
 
         <div className="sidebar-actions">
           <button className="ghost-button sidebar-action" onClick={() => setShowInbox(!showInbox)}>
-            <Bell size={16} aria-hidden="true" />
+            <span className="bell-wrapper">
+              <Bell size={16} aria-hidden="true" />
+              {webhookEvents.length > 0 && <span className="badge-dot" />}
+            </span>
             通知
-            {webhookEvents.length > 0 && <span className="badge-count">{webhookEvents.length}</span>}
           </button>
           <button className="ghost-button sidebar-action" onClick={() => setShowSettings(!showSettings)}>
             <Settings2 size={16} aria-hidden="true" />
@@ -336,7 +347,10 @@ function App() {
                         <p className="inbox-item-reason">{event.classification.reason}</p>
                       )}
                       <div className="inbox-item-actions">
-                        <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(event.event_id); }}>
+                        <button onClick={(e) => { e.stopPropagation(); handleReadEvent(event.event_id); }}>
+                          标为已读
+                        </button>
+                        <button className="delete-btn" onClick={(e) => { e.stopPropagation(); handleDeleteEvent(event.event_id); }}>
                           删除
                         </button>
                       </div>
@@ -491,7 +505,7 @@ function App() {
                   <span>Closed</span>
                 </div>
               </div>
-              <CategoryBars summaries={snapshot.issue_categories} total={snapshot.issues.filter(i => i.state === 'open').length} />
+              <CategoryBars summaries={snapshot.issue_categories} total={snapshot.issue_categories.reduce((s, c) => s + c.count, 0)} />
               <IssueWorkflow issues={snapshot.issues} eventCount={webhookEvents.length} />
             </section>
 

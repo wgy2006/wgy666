@@ -3,6 +3,7 @@
  */
 import { ArrowRight, CheckCircle2, Workflow } from 'lucide-react'
 import type { GitHubIssue } from '../api'
+import '../component-css/IssueWorkflow.css'
 
 export function IssueWorkflow({ issues, eventCount }: { issues: GitHubIssue[]; eventCount: number }) {
   const classified = issues.filter((issue) => issue.classification?.category).length

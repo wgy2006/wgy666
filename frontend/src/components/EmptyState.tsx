@@ -2,6 +2,7 @@
  * EmptyState — initial landing state shown before any repository is synced.
  */
 import { ArrowRight, Loader2, Network } from 'lucide-react'
+import '../component-css/EmptyState.css'
 
 export function EmptyState({ isLoading }: { isLoading: boolean }) {
   return (
