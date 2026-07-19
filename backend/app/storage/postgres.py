@@ -37,7 +37,11 @@ class PostgresRepositoryStore:
 
     def __init__(self, engine: Engine | None = None) -> None:
         self.engine = engine or create_database_engine()
-        initialize_database(self.engine)
+        self._broken = False
+        try:
+            initialize_database(self.engine)
+        except Exception:
+            self._broken = True
 
     def save(self, snapshot: RepositorySnapshot) -> None:
         with self.engine.begin() as connection:

@@ -1,7 +1,7 @@
 .workspace {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 340px minmax(0, 1fr) 380px;
+  grid-template-columns: 380px minmax(0, 1fr) 380px;
   background: #f5f7f8;
   color: #182027;
 }
@@ -1447,6 +1447,41 @@ button,
   flex: 1;
 }
 
+/* -- Inbox read/delete buttons -------------------------------------------- */
+
+.inbox-item-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.inbox-item-actions button {
+  flex: 1;
+  min-height: 28px;
+  padding: 0 8px;
+  font-size: 11px;
+  border: 1px solid #d9e0e6;
+  border-radius: 6px;
+  background: #fff;
+  color: #43505c;
+  cursor: pointer;
+}
+
+.inbox-item-actions button:hover {
+  background: #f0f4f8;
+  border-color: #b7c4cf;
+}
+
+.inbox-item-actions .delete-btn:hover {
+  background: #fff1f0;
+  border-color: #e0b3b3;
+  color: #b42318;
+}
+
+.inbox-item.read {
+  opacity: 0.6;
+}
+
 /* -- Auto-reply draft section (separate from classification) --------------- */
 
 .auto-reply-section {
@@ -1657,6 +1692,9 @@ button,
 
 .input-with-icon input {
   padding-left: 34px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 input {

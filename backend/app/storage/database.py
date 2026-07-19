@@ -147,6 +147,26 @@ sync_runs = Table(
     Column("summary", JSON, nullable=False, default=dict),
 )
 
+webhook_events = Table(
+    "webhook_events",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("event_id", String(255), nullable=False, unique=True),
+    Column("event_type", String(64), nullable=False),
+    Column("action", String(64), nullable=False),
+    Column("repository", String(512), nullable=False),
+    Column("issue_number", Integer, nullable=False),
+    Column("issue_title", Text, nullable=False, default=""),
+    Column("issue_state", String(64), nullable=False, default="open"),
+    Column("issue_labels", JSON, nullable=False, default=list),
+    Column("issue_author", String(255)),
+    Column("classification_json", JSON),
+    Column("raw_payload", JSON),
+    Column("is_read", Boolean, nullable=False, default=False),
+    Column("is_deleted", Boolean, nullable=False, default=False),
+    Column("received_at", DateTime(timezone=True), nullable=False),
+)
+
 
 knowledge_nodes = Table(
     "knowledge_nodes",

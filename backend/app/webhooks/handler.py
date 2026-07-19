@@ -3,6 +3,7 @@ import hmac
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import Any
 
 from app.schemas.issue import IssueCategory, IssueClassification
 from app.schemas.repository import CategorySummary, GitHubIssue
@@ -34,6 +35,40 @@ class WebhookEventRecord:
 # Module-level in-memory store for webhook events.
 # Follows the same simple-interface pattern as InMemoryRepositoryStore.
 webhook_event_store: dict[str, WebhookEventRecord] = {}
+
+
+def _persist_event(record: WebhookEventRecord) -> None:
+    """Write a webhook event to the database when available."""
+    try:
+        from app.storage.database import webhook_events
+        from app.core.config import settings
+        from sqlalchemy import insert
+
+        if not settings.database_url:
+            return
+
+        from app.storage.database import create_database_engine
+        engine = create_database_engine()
+        with engine.begin() as conn:
+            stmt = insert(webhook_events).values(
+                event_id=record.event_id,
+                event_type=record.event_type,
+                action=record.action,
+                repository=record.repository,
+                issue_number=record.issue_number,
+                issue_title=record.issue_title,
+                issue_state=record.issue_state,
+                issue_labels=record.issue_labels,
+                issue_author=record.issue_author,
+                classification_json=record.classification.model_dump(mode="json") if record.classification else None,
+                raw_payload=record.raw_payload,
+                is_read=False,
+                is_deleted=False,
+                received_at=record.received_at,
+            )
+            conn.execute(stmt)
+    except Exception:
+        pass  # best-effort persistence
 
 
 # ---------------------------------------------------------------------------
@@ -140,6 +175,9 @@ async def handle_issue_event(payload: dict, delivery_id: str | None = None) -> W
         raw_payload=payload,
     )
     webhook_event_store[delivery_id or str(issue_number)] = record
+
+    # Persist to database (if configured).
+    _persist_event(record)
 
     # If the repository has already been synced, update its snapshot in place.
     if "/" in full_name:

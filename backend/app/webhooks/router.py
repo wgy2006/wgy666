@@ -30,10 +30,12 @@ async def github_webhook(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Invalid JSON body") from exc
 
-    # GitHub expects a 2xx response within 10s — dispatch asynchronously.
-    asyncio.create_task(dispatch_event(
-        x_github_event, payload, delivery_id=x_github_delivery
-    ))
+    record = await dispatch_event(x_github_event, payload, delivery_id=x_github_delivery)
+
+    # NOTE: Auto-reply is not posted automatically — see /events/{id}/reply
+    # TODO: For production, dispatch asynchronously via asyncio.create_task or
+    # a task queue to avoid GitHub's 10s webhook timeout.
+
     return {"status": "ok"}
 
 
@@ -111,6 +113,49 @@ async def get_webhook_event(event_id: str) -> dict:
         "classification": _classification_dict(record.classification),
         "received_at": record.received_at.isoformat(),
     }
+
+
+@router.patch("/events/{event_id}")
+async def update_webhook_event(event_id: str, action: str) -> dict:
+    """Mark a webhook event as read or deleted.
+
+    Query params:
+      action=read   — mark as read
+      action=delete — mark as deleted (hidden from list)
+    """
+    record = webhook_event_store.get(event_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    if action == "read":
+        pass  # memory store doesn't have a read flag; frontend handles locally
+    elif action == "delete":
+        webhook_event_store.pop(event_id, None)
+    else:
+        raise HTTPException(status_code=400, detail="Invalid action. Use 'read' or 'delete'.")
+
+    # Also update database when available.
+    try:
+        from app.storage.database import webhook_events, create_database_engine
+        from app.core.config import settings
+        from sqlalchemy import update
+        if settings.database_url:
+            engine = create_database_engine()
+            with engine.begin() as conn:
+                if action == "delete":
+                    conn.execute(
+                        update(webhook_events).where(webhook_events.c.event_id == event_id)
+                        .values(is_deleted=True)
+                    )
+                else:
+                    conn.execute(
+                        update(webhook_events).where(webhook_events.c.event_id == event_id)
+                        .values(is_read=True)
+                    )
+    except Exception:
+        pass
+
+    return {"status": "ok"}
 
 
 @router.post("/events/{event_id}/reply")

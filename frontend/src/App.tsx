@@ -94,11 +94,23 @@ function App() {
     try {
       const detail = await fetchWebhookEventDetail(event.event_id)
       setSelectedEvent(detail)
+      // Mark as read
+      await updateWebhookEvent(event.event_id, 'read')
+      setWebhookEvents(prev => prev.map(e =>
+        e.event_id === event.event_id ? { ...e } : e
+      ))
     } catch {
       setSelectedEvent(null)
     } finally {
       setEventDetailLoading(false)
     }
+  }
+
+  async function handleDeleteEvent(eventId: string) {
+    try {
+      await updateWebhookEvent(eventId, 'delete')
+      setWebhookEvents(prev => prev.filter(e => e.event_id !== eventId))
+    } catch { /* ignore */ }
   }
 
   // Auto-poll for new notifications (updates the badge count).
@@ -287,13 +299,6 @@ function App() {
           </div>
           <div className="top-actions">
             <span className="live-status"><span /> 前端在线</span>
-            <button className={`icon-button ${showInbox ? 'active' : ''}`} onClick={() => setShowInbox(!showInbox)} title="通知">
-              <Bell size={19} aria-hidden="true" />
-              {webhookEvents.length > 0 && <span className="badge-count">{webhookEvents.length}</span>}
-            </button>
-            <button className={`icon-button ${showSettings ? 'active' : ''}`} onClick={() => setShowSettings(!showSettings)} title="配置">
-              <Settings2 size={19} aria-hidden="true" />
-            </button>
           </div>
         </div>
 
@@ -330,6 +335,11 @@ function App() {
                       {event.classification?.reason && (
                         <p className="inbox-item-reason">{event.classification.reason}</p>
                       )}
+                      <div className="inbox-item-actions">
+                        <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(event.event_id); }}>
+                          删除
+                        </button>
+                      </div>
                     </button>
                   ))}
                 </div>

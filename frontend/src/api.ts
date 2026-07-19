@@ -256,6 +256,17 @@ export async function fetchWebhookEventDetail(eventId: string): Promise<WebhookE
   return response.json()
 }
 
+/** Mark a webhook event as read or deleted. */
+export async function updateWebhookEvent(eventId: string, action: 'read' | 'delete'): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/webhooks/events/${encodeURIComponent(eventId)}?action=${action}`, {
+    method: 'PATCH',
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => null)
+    throw new Error(error?.detail ?? `Failed to update event: ${response.status}`)
+  }
+}
+
 /** Post an auto-reply for a webhook event via AgentHarness. */
 export async function postWebhookReply(eventId: string): Promise<{ status: string; reply_text: string; comment_url: string }> {
   const response = await fetch(`${API_BASE_URL}/api/webhooks/events/${encodeURIComponent(eventId)}/reply`, {
