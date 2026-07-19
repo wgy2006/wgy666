@@ -9,6 +9,7 @@ from app.assistant.tool_registry import RepositoryToolRegistry
 from app.assistant.tools import ToolResult, merge_citations
 from app.core.config import settings
 from app.schemas.assistant import AssistantChatRequest, AssistantChatResponse
+from app.schemas.repository import RepositorySnapshot
 from app.schemas.issue import IssueCategory
 from app.services.repository_query import RepositoryQueryService
 
@@ -118,54 +119,16 @@ class AgentHarness:
             citations=merge_citations(tool_results),
         )
 
-    async def generate_issue_reply(
+    async def run(
         self,
-        owner: str,
-        name: str,
-        issue_title: str,
-        issue_body: str | None,
-        labels: list[str],
+        messages: list[dict[str, Any]],
+        snapshot: RepositorySnapshot,
+        max_rounds: int | None = None,
     ) -> str:
-        """Generate a reply for a GitHub issue using the full tool-calling loop.
+        """Run the tool-calling loop with given messages and return final text."""
+        max_rounds = max_rounds or max(1, settings.assistant_max_tool_rounds)
+        tool_results: list[ToolResult] = []
 
-        The LLM can search the repository knowledge base (files, README,
-        issues, code structure) to produce an informed reply.
-        """
-        if not settings.llm_api_key:
-            raise AgentHarnessError("LLM_API_KEY is not configured.", status_code=503)
-
-        snapshot, used_cached_data = await self.query.get_snapshot(owner, name, "cache_first")
-        labels_str = ", ".join(labels) if labels else "(none)"
-        body_str = issue_body or "(no body provided)"
-
-        messages: list[dict[str, Any]] = [
-            {
-                "role": "system",
-                "content": (
-                    "You are a helpful open-source project maintainer assistant. "
-                    "A user has filed an issue on the repository. "
-                    "Use the available tools to research the issue, then write "
-                    "a concise, friendly reply in Chinese. "
-                    "For questions, provide guidance from the codebase. "
-                    "For feature requests, acknowledge politely. "
-                    "Keep your reply under 200 words.\n\n"
-                    f"Repository: {snapshot.identity.full_name}\n"
-                    f"Data freshness: {'cached' if used_cached_data else 'fresh'}"
-                ),
-            },
-            {
-                "role": "user",
-                "content": (
-                    f"## Issue\n\n"
-                    f"**Title**: {issue_title}\n"
-                    f"**Body**: {body_str}\n"
-                    f"**Labels**: {labels_str}\n\n"
-                    "Research and reply to this issue."
-                ),
-            },
-        ]
-
-        max_rounds = max(1, settings.assistant_max_tool_rounds)
         for round_index in range(max_rounds):
             completion = await self.client.chat.completions.create(
                 model=settings.llm_model,
@@ -187,10 +150,11 @@ class AgentHarness:
                     tool_call.function.arguments,
                     snapshot,
                 )
+                tool_results.append(result)
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tool_call.id,
-                    "content": result.content,
+                    "content": self._tool_result_content(result),
                 })
 
             if round_index == max_rounds - 1:
@@ -204,6 +168,7 @@ class AgentHarness:
             messages=messages,
         )
         return final.choices[0].message.content or ""
+
     def _build_initial_messages(
         self,
         request: AssistantChatRequest,
