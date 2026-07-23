@@ -115,12 +115,11 @@ def test_handle_issue_ignores_non_opened():
     for action in ("edited", "labeled"):
         payload = _make_issue_payload(action=action, number=103)
         assert asyncio.run(handle_issue_event(payload)) is None, f"action={action} should be ignored"
-    # closed/reopened are handled (update snapshot + store event).
+    # closed/reopened silently update snapshot, return None.
     for action in ("closed", "reopened"):
         payload = _make_issue_payload(action=action, number=104)
         result = asyncio.run(handle_issue_event(payload))
-        assert result is not None, f"action={action} should be handled"
-        assert result.action == action
+        assert result is None, f"action={action} should silently return None"
 
 
 def test_handle_issue_missing_repo():

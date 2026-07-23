@@ -178,19 +178,8 @@ async def handle_issue_event(payload: dict, delivery_id: str | None = None) -> W
                         existing.issues[i].state = issue_state
                         break
                 repository_store.save(existing)
-        # Record the event for notification (no LLM classification needed).
-        record = WebhookEventRecord(
-            event_id=delivery_id or "",
-            event_type="issues", action=action,
-            repository=full_name, issue_number=issue_number,
-            issue_title=issue_data.get("title") or "",
-            issue_state=issue_state,
-            received_at=datetime.now(timezone.utc),
-            raw_payload=payload,
-        )
-        webhook_event_store[delivery_id or str(issue_number)] = record
-        _persist_event(record)
-        return record
+        # Silently update snapshot; no notification needed.
+        return None
 
     if action != "opened":
         return None
