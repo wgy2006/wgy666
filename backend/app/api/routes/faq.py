@@ -22,6 +22,7 @@ class FaqCreateRequest(BaseModel):
 class FaqAutoGenerateResponse(BaseModel):
     created: int
     entries: list[dict]
+    reason: str = ""
 
 
 # ── List ───────────────────────────────────────────────────────────────
@@ -188,7 +189,9 @@ async def auto_generate_faq(owner: str, name: str) -> FaqAutoGenerateResponse:
     # Pick groups with 2+ issues.
     candidates = [g for g in groups.values() if len(g) >= 2][:10]
     if not candidates:
-        return FaqAutoGenerateResponse(created=0, entries=[])
+        all_issues = len([i for i in snapshot.issues if i.state == "closed"])
+        reason = f"仓库有 {all_issues} 个已关闭 Issue，但没有足够的相似 Issue 来聚类生成 FAQ（每组需 ≥ 2 个同类型 Issue）" if all_issues > 0 else "仓库暂无已关闭 Issue，无法自动生成 FAQ"
+        return FaqAutoGenerateResponse(created=0, entries=[], reason=reason)
 
     client = AsyncOpenAI(
         api_key=settings.llm_api_key,

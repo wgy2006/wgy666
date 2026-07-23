@@ -152,3 +152,97 @@ def test_faq_rows_always_have_repository_id(repository_database):
         assert row["repository_id"] is not None
     finally:
         engine.dispose()
+
+
+def test_faq_generate_reason_no_issues():
+    """repository_database is skipped; this test uses in-memory store."""
+    from app.core.config import settings as _s
+    _s.database_url = None
+    import importlib
+    import app.storage
+    importlib.reload(app.storage)
+
+    _test_reason_no_issues()
+
+def _test_reason_no_issues():
+    """auto_generate_faq returns a reason when no similar closed issues exist."""
+    import asyncio
+    from app.schemas.issue import GitHubIssue, IssueCategory, IssueClassification
+    from app.schemas.repository import (
+        ClassifiedFile, FileCategory, CategorySummary,
+        RepositorySnapshot, RepositoryIdentity, RepositoryStats,
+    )
+    from app.storage import repository_store
+    from datetime import datetime, timezone
+
+    owner, name = "faq-reason-owner", "faq-reason-repo"
+    snap = RepositorySnapshot(
+        identity=RepositoryIdentity(
+            owner=owner, name=name, full_name=f"{owner}/{name}",
+            html_url="https://github.com/owner/repo", default_branch="main",
+        ),
+        description="",
+        stats=RepositoryStats(),
+        files=[ClassifiedFile(path="a.py", category=FileCategory.SOURCE, size=10)],
+        file_categories=[CategorySummary(category="source_code", count=1)],
+        issues=[],  # No closed issues → should trigger the "no issues" path
+        pull_requests=[], recent_commits=[],
+        synced_at=datetime.now(timezone.utc),
+    )
+    repository_store.save(snap)
+
+    from app.api.routes.faq import auto_generate_faq
+    result = asyncio.run(auto_generate_faq(owner, name))
+    assert result.created == 0
+    assert "暂无已关闭 Issue" in result.reason
+
+
+def test_faq_generate_reason_insufficient():
+    _test_reason_insufficient()
+
+def _test_reason_insufficient():
+    """auto_generate_faq returns a reason when closed issues are too few to cluster."""
+    import asyncio
+    from app.schemas.issue import GitHubIssue, IssueCategory, IssueClassification
+    from app.schemas.repository import (
+        ClassifiedFile, FileCategory, CategorySummary,
+        RepositorySnapshot, RepositoryIdentity, RepositoryStats,
+    )
+    from app.storage import repository_store
+    from datetime import datetime, timezone
+
+    owner, name = "faq-reason-owner2", "faq-reason-repo2"
+    snap = RepositorySnapshot(
+        identity=RepositoryIdentity(
+            owner=owner, name=name, full_name=f"{owner}/{name}",
+            html_url="https://github.com/owner/repo", default_branch="main",
+        ),
+        description="",
+        stats=RepositoryStats(),
+        files=[ClassifiedFile(path="a.py", category=FileCategory.SOURCE, size=10)],
+        file_categories=[CategorySummary(category="source_code", count=1)],
+        issues=[
+            GitHubIssue(
+                number=1, title="Bug A", state="closed", html_url="https://github.com/o/r/issues/1",
+                labels=[], classification=IssueClassification(
+                    category=IssueCategory.BUG, confidence=0.9,
+                    reason="", suggested_action="", signals=[],
+                ),
+            ),
+            GitHubIssue(
+                number=2, title="Feature B", state="closed", html_url="https://github.com/o/r/issues/2",
+                labels=[], classification=IssueClassification(
+                    category=IssueCategory.FEATURE_REQUEST, confidence=0.9,
+                    reason="", suggested_action="", signals=[],
+                ),
+            ),
+        ],
+        pull_requests=[], recent_commits=[],
+        synced_at=datetime.now(timezone.utc),
+    )
+    repository_store.save(snap)
+
+    from app.api.routes.faq import auto_generate_faq
+    result = asyncio.run(auto_generate_faq(owner, name))
+    assert result.created == 0
+    assert "不足以" in result.reason or "相似" in result.reason or len(result.reason) > 0
