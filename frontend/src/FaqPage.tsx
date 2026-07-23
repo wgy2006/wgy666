@@ -1,5 +1,5 @@
 import { useCallback, useState, useEffect } from 'react'
-import { BookOpen, Check, Loader2, Plus, RefreshCw, Trash2, X } from 'lucide-react'
+import { BookOpen, Loader2, Plus, RefreshCw } from 'lucide-react'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 
@@ -136,11 +136,11 @@ export default function FaqPage({ owner, name }: { owner: string; name: string }
                 <div className="faq-item-meta">
                   {!entry.is_confirmed && <span className="badge" style={{ background: '#fff4d6', color: '#946200' }}>待确认</span>}
                   <span style={{ fontSize: 11, color: '#6a747e' }}>命中 {entry.hit_count} 次</span>
-                  <button className="icon-button-sm" onClick={() => handleConfirm(entry.id, !entry.is_confirmed)} title={entry.is_confirmed ? '取消确认' : '确认'}>
-                    {entry.is_confirmed ? <X size={14} /> : <Check size={14} />}
+                  <button className="ghost-button" style={{ minHeight: 28, padding: '0 8px', fontSize: 12 }} onClick={() => handleConfirm(entry.id, !entry.is_confirmed)}>
+                    {entry.is_confirmed ? '取消确认' : '确认'}
                   </button>
-                  <button className="icon-button-sm" onClick={() => handleDelete(entry.id)} title="删除">
-                    <Trash2 size={14} />
+                  <button className="ghost-button" style={{ minHeight: 28, padding: '0 8px', fontSize: 12 }} onClick={() => handleDelete(entry.id)}>
+                    删除
                   </button>
                 </div>
               </div>
