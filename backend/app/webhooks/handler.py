@@ -150,6 +150,28 @@ async def dispatch_event(event: str, payload: dict, delivery_id: str | None = No
 # Issue event handler
 # ---------------------------------------------------------------------------
 
+def _make_record(delivery_id, action, payload, full_name, issue_number, issue_data, issue_state, classification=None):
+    """Create a WebhookEventRecord from issue data."""
+    return WebhookEventRecord(
+        event_id=delivery_id or "",
+        event_type="issues", action=action,
+        repository=full_name, issue_number=issue_number,
+        issue_title=issue_data.get("title") or "",
+        issue_state=issue_state,
+        issue_labels=[
+            label["name"] for label in issue_data.get("labels", [])
+            if isinstance(label, dict) and "name" in label
+        ],
+        issue_author=(
+            issue_data.get("user", {}).get("login")
+            if isinstance(issue_data.get("user"), dict) else None
+        ),
+        classification=classification,
+        received_at=datetime.now(timezone.utc),
+        raw_payload=payload,
+    )
+
+
 async def handle_issue_event(payload: dict, delivery_id: str | None = None) -> WebhookEventRecord | None:
     """Process an 'issues' webhook event.
 
@@ -166,22 +188,39 @@ async def handle_issue_event(payload: dict, delivery_id: str | None = None) -> W
     if not full_name or not issue_number:
         return None
 
-    # Handle state changes (closed / reopened) — update snapshot only.
-    if action in ("closed", "reopened"):
-        issue_state = action  # "closed" or "reopened"
+    # Handle closed — update snapshot + notification (no LLM classification).
+    if action == "closed":
+        issue_state = "closed"
         if "/" in full_name:
             owner, name = full_name.split("/", 1)
             existing = repository_store.get(owner, name)
             if existing is not None:
                 for i, iss in enumerate(existing.issues):
                     if iss.number == issue_number:
-                        existing.issues[i].state = issue_state
+                        existing.issues[i].state = "closed"
                         break
                 repository_store.save(existing)
-        # Silently update snapshot; no notification needed.
-        return None
+        # Record event so frontend polling can detect the change.
+        record = _make_record(delivery_id, action, payload, full_name, issue_number,
+                            issue_data, issue_state)
+        webhook_event_store[delivery_id or str(issue_number)] = record
+        _persist_event(record)
+        return record
 
-    if action != "opened":
+    # Handle reopened — update snapshot state, treat like opened.
+    if action == "reopened":
+        issue_state = "open"
+        if "/" in full_name:
+            owner, name = full_name.split("/", 1)
+            existing = repository_store.get(owner, name)
+            if existing is not None:
+                for i, iss in enumerate(existing.issues):
+                    if iss.number == issue_number:
+                        existing.issues[i].state = "open"
+                        break
+                repository_store.save(existing)
+
+    if action not in ("opened", "reopened"):
         return None
 
     issue_data = payload.get("issue", {})

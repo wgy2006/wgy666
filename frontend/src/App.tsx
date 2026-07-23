@@ -125,17 +125,26 @@ function App() {
   }
 
   // Auto-poll for new notifications (updates the badge count).
+  // Also refreshes snapshot when closed/reopened events are detected.
+  const repoName = snapshot?.identity.full_name
   useEffect(() => {
-    const poll = setInterval(async () => {
+    async function pollAndRefresh() {
       try {
-        const events = await fetchWebhookEvents(20, snapshot?.identity.full_name)
+        const events = await fetchWebhookEvents(20, repoName)
         setWebhookEvents(events)
+        // If a closed/reopened event is detected, refresh the snapshot.
+        if (snapshot && repoName && events.some(e => e.action === 'closed' || e.action === 'reopened')) {
+          const snap = await fetchRepositorySnapshot(
+            snapshot.identity.owner, snapshot.identity.name,
+          )
+          setSnapshot(snap)
+        }
       } catch { /* ignore */ }
-    }, 30000)
-    // Initial fetch
-    fetchWebhookEvents(20, snapshot?.identity.full_name).then(setWebhookEvents).catch(() => {})
+    }
+    const poll = setInterval(pollAndRefresh, 30000)
+    pollAndRefresh()
     return () => clearInterval(poll)
-  }, [snapshot?.identity.full_name])
+  }, [repoName])
 
   // -- Load synced repo list on mount + auto-select last one ----------------
 
