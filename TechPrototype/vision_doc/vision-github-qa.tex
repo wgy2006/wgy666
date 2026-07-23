@@ -1,0 +1,712 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage[top=2cm,bottom=2cm,left=2.54cm,right=2.54cm]{geometry}
+\usepackage{titlesec}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\usepackage{enumitem}
+\usepackage{indentfirst}
+
+% ========== IEEE 830 风格配置 ==========
+% 正文: 10pt Times Roman / 宋体, 单倍行距
+
+\setstretch{1.2}
+\setlength{\parskip}{3pt}
+\setlength{\parindent}{2em}
+
+% --- 章节标题: 无衬线 (Arial/黑体) ---
+% 章标题（第1级）: 12pt 左对齐
+\titleformat{\section}{\sffamily\fontsize{12pt}{14pt}\bfseries}{\thesection}{1em}{}
+% 节标题（第2级）: 10pt
+\titleformat{\subsection}{\sffamily\fontsize{10pt}{12pt}\bfseries}{\thesubsection}{1em}{}
+% 小节标题（第3级）: 10pt 斜体
+\titleformat{\subsubsection}{\sffamily\fontsize{10pt}{12pt}\itshape}{\thesubsubsection}{1em}{}
+
+% --- 标题间距 ---
+\titlespacing*{\section}{0pt}{14pt}{6pt}
+\titlespacing*{\subsection}{0pt}{10pt}{4pt}
+\titlespacing*{\subsubsection}{0pt}{8pt}{3pt}
+
+% --- 目录 ---
+\renewcommand{\contentsname}{\sffamily\fontsize{12pt}{14pt}\bfseries 目录}
+\setcounter{tocdepth}{3}
+
+% --- 页眉页脚: 9pt ---
+\setlength{\headheight}{13pt}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[C]{\fontsize{9pt}{11pt}\selectfont\leftmark}
+\fancyfoot[C]{\fontsize{9pt}{11pt}\selectfont\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% --- 列表紧凑 ---
+\setlist{nosep,leftmargin=2em}
+
+% --- 表格列类型辅助 ---
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+
+% --- 表格环境封装（字号保持 10pt） ---
+\newenvironment{ieeetable}{\begin{center}}{\end{center}}
+
+% ========== 封面信息 ==========
+\title{{\sffamily\bfseries\fontsize{18pt}{22pt} IssueScope}\\[6pt]
+       {\sffamily\bfseries\fontsize{12pt}{14pt} GitHub 仓库问答与 Issue 分析系统}\\[14pt]
+       {\sffamily\bfseries\fontsize{11pt}{13pt} 前景文档}}
+\author{\fontsize{10pt}{12pt}\selectfont
+        版本 1.1 \\[3pt]
+        需求分析负责人：焦一帆}
+\date{\fontsize{10pt}{12pt}\selectfont 2026 年 7 月}
+
+\begin{document}
+
+% ============================================================
+%  封面页
+% ============================================================
+\maketitle
+\thispagestyle{empty}
+\vfill
+\begin{center}
+    \begin{tabularx}{0.65\textwidth}{>{\raggedleft\arraybackslash}p{2.5cm} >{\raggedright\arraybackslash}X}
+        \hline
+        \textbf{项目名称} & IssueScope（GitHub 仓库问答与 Issue 分析系统） \\
+        \textbf{文档名称} & 前景文档 \\
+        \textbf{版本号} & 1.1 \\
+        \textbf{制定日期} & 2026-07-07 \\
+        \textbf{制定人} & 焦一帆，王光佑，杨隽祺，杨可卓 \\
+        \textbf{评审日期} & 2026-07-09 \\
+        \hline
+    \end{tabularx}
+\end{center}
+\newpage
+
+% ============================================================
+%  修订历史记录
+% ============================================================
+\section*{\sffamily\bfseries\fontsize{12pt}{14pt} 修订历史记录}
+\vspace{6pt}
+\begin{center}
+    \begin{tabularx}{\textwidth}{|C{1.8cm}|C{2.2cm}|X|C{2.2cm}|C{2.5cm}|}
+        \hline
+        \textbf{版本} & \textbf{日期} & \textbf{修订内容} & \textbf{修订人} & \textbf{审核人} \\
+        \hline
+        1.0 & 2026-07-07 & 初稿 & 焦一帆 & 全体成员（评审日期 07-09） \\
+        \hline
+        1.1 & 2026-07-23 & 技术原型阶段：补充功能摘要、知识库构建、智能问答、系统需求等章节 & 焦一帆 & 全体成员 \\
+        \hline
+    \end{tabularx}
+\end{center}
+\newpage
+
+% ============================================================
+%  目录
+% ============================================================
+\tableofcontents
+\newpage
+
+% ============================================================
+%  1. 简介
+% ============================================================
+\section{简介}
+
+\subsection{目的}
+本文档旨在定义 IssueScope（GitHub 仓库问答与 Issue 分析系统）的高层次需求，阐述搭建一个将 GitHub 公开仓库自动同步、文件与 Issue 分类、智能问答和分析的平台的核心目标与范围，并规划引入 RAG、LLM、多 Agent 等进阶能力的远景方向。
+
+\subsection{范围}
+
+本系统是一个面向 GitHub 仓库的全链路智能分析平台，涵盖以下功能范围：
+
+\begin{itemize}
+    \item \textbf{仓库接入与同步}——支持公开 GitHub 仓库接入（REST API），自动同步元数据、README、目录树、Issues、PRs、Commits 数据
+    \item \textbf{知识库构建}——文件自动分类、知识图谱与向量索引相结合的仓库知识库
+    \item \textbf{智能问答}——基于仓库上下文的 What / Where / How / Why 问答
+    \item \textbf{Issue 智能分析}——9 类自动分类、重复检测、置信度评分，通过 Webhook 实时监听
+    \item \textbf{自动回复与修复}——生成回复建议，定位相关代码模块并自动创建修复 PR
+    \item \textbf{知识沉淀}——历史修复模式学习、维护者偏好适配与 FAQ 知识库自动生成
+    \item \textbf{可视化仪表盘}——仓库全景信息展示与数据分析
+\end{itemize}
+
+\subsection{定义、首字母缩写词和缩略语}
+
+\begin{ieeetable}
+    \begin{tabularx}{\textwidth}{L{3.5cm} X}
+        \toprule
+        \textbf{术语} & \textbf{定义} \\
+        \midrule
+        Agent & 具有自主决策和行动能力的智能体 \\
+        RAG & Retrieval-Augmented Generation，检索增强生成 \\
+        LLM & Large Language Model，大语言模型 \\
+        Issue & GitHub 项目中的问题/任务条目 \\
+        PR & Pull Request，代码合并请求 \\
+        KB & Knowledge Base，知识库 \\
+        FAQ & Frequently Asked Questions，常见问题 \\
+        RepositorySnapshot & 仓库同步后生成的全量数据快照，包含元信息、文件分类、Issue 分类等 \\
+        FileCategory & 文件分类体系：SOURCE / TEST / DOCS / CONFIG / CI\_CD / DEPENDENCY / BUILD / ASSET / DATA / OTHER \\
+        IssueCategory & Issue 分类体系：BUG / FEATURE\_REQUEST / QUESTION / DOCUMENTATION / DUPLICATE / INFO\_NEEDED / INVALID / MAINTENANCE / UNKNOWN \\
+        Webhook & GitHub 事件推送机制，支持 issues.opened 事件的接收和分类 \\
+        Sync & 仓库同步——拉取 GitHub 数据 → 规则分类 → 生成快照 → 缓存 \\
+        \bottomrule
+    \end{tabularx}
+\end{ieeetable}
+
+\subsection{参考资料}
+
+\begin{enumerate}
+    \item GitHub REST API 文档, \url{https://docs.github.com/en/rest}
+    \item GitHub Webhook 文档, \url{https://docs.github.com/en/webhooks}
+\end{enumerate}
+
+% ============================================================
+%  2. 定位
+% ============================================================
+\section{定位}
+
+\subsection{商机}
+
+随着开源生态的快速发展，GitHub 上仅有少部分项目配置了 Issue 模板，大多数项目的 Issue 处于无分类管理状态。项目维护者往往需要花费大量时间手动分类和回复 Issue。
+
+现有的 GitHub Issues 原生工具仅有标签和里程碑功能，缺乏智能分析和回复能力。当前市场上缺少能够将仓库代码理解、Issue 智能分类、自动问答有机结合的一体化解决方案，这为本系统提供了明确的商机。
+
+\subsection{问题说明}
+
+\begin{ieeetable}
+    \begin{tabularx}{\textwidth}{L{3.5cm} X}
+        \toprule
+        \textbf{面对问题} & Issue 类型混杂，维护者需手动分类 \\
+        \midrule
+        \textbf{影响} & 开源项目维护者、核心贡献者、普通开发者 \\
+        \midrule
+        \textbf{后果} & 响应延迟，关键 Bug 被淹没，社区满意度下降，贡献者流失 \\
+        \midrule
+        \textbf{成功方案} & 自动 Issue 分类（规则分类与 LLM 增强分类） \\
+        \bottomrule
+    \end{tabularx}
+\end{ieeetable}
+
+\vspace{4pt}
+
+\begin{ieeetable}
+    \begin{tabularx}{\textwidth}{L{3.5cm} X}
+        \toprule
+        \textbf{面对问题} & 重复问题反复出现 \\
+        \midrule
+        \textbf{影响} & 开源项目维护者 \\
+        \midrule
+        \textbf{后果} & 维护者反复回复相同内容，维护效率低下 \\
+        \midrule
+        \textbf{成功方案} & 重复检测 + FAQ 自动生成 \\
+        \bottomrule
+    \end{tabularx}
+\end{ieeetable}
+
+\vspace{4pt}
+
+\begin{ieeetable}
+    \begin{tabularx}{\textwidth}{L{3.5cm} X}
+        \toprule
+        \textbf{面对问题} & 新贡献者不熟悉代码库结构和设计 \\
+        \midrule
+        \textbf{影响} & 新贡献者和普通开发者 \\
+        \midrule
+        \textbf{后果} & 提问质量低，交流成本高，社区入门门槛高 \\
+        \midrule
+        \textbf{成功方案} & 仓库知识库智能问答（What / Where / How） \\
+        \bottomrule
+    \end{tabularx}
+\end{ieeetable}
+
+\vspace{4pt}
+
+\begin{ieeetable}
+    \begin{tabularx}{\textwidth}{L{3.5cm} X}
+        \toprule
+        \textbf{面对问题} & Bug 修复定位困难 \\
+        \midrule
+        \textbf{影响} & 项目维护者和核心贡献者 \\
+        \midrule
+        \textbf{后果} & 修复周期长，Issue 积压 \\
+        \midrule
+        \textbf{成功方案} & 自动定位相关文件 + 修复建议 \\
+        \bottomrule
+    \end{tabularx}
+\end{ieeetable}
+
+\vspace{4pt}
+
+\begin{ieeetable}
+    \begin{tabularx}{\textwidth}{L{3.5cm} X}
+        \toprule
+        \textbf{面对问题} & 缺乏 Issue 处理后的知识沉淀 \\
+        \midrule
+        \textbf{影响} & 开源项目社区 \\
+        \midrule
+        \textbf{后果} & 相同问题反复被问，社区知识无法积累 \\
+        \midrule
+        \textbf{成功方案} & 自动生成 FAQ 知识库 \\
+        \bottomrule
+    \end{tabularx}
+\end{ieeetable}
+
+\subsection{产品定位说明}
+
+\begin{ieeetable}
+    \begin{tabularx}{\textwidth}{L{3cm} X}
+        \toprule
+        \textbf{针对于} & 开源项目维护者和核心贡献者 \\
+        \midrule
+        \textbf{他们是} & 需要高效管理 GitHub Issue、快速响应社区的开发者和项目团队 \\
+        \midrule
+        \textbf{我们的产品} & IssueScope（GitHub 仓库问答与 Issue 分析系统） \\
+        \midrule
+        \textbf{功能是} & 自动同步分析 GitHub 仓库，智能分类 Issue，提供基于代码上下文的问答和修复建议 \\
+        \midrule
+        \textbf{不同于} & GitHub Issues 原生工具（仅标签分类）和通用 AI 编码助手（无仓库上下文） \\
+        \midrule
+        \textbf{我们的产品} & 专注于仓库级别的上下文理解，将代码结构、Issue 历史、文档知识整合为统一知识库 \\
+        \bottomrule
+    \end{tabularx}
+\end{ieeetable}
+
+% ============================================================
+%  3. 涉众和用户说明
+% ============================================================
+\section{涉众和用户说明}
+
+\subsection{市场统计}
+
+目标用户群体包括：
+\begin{itemize}
+    \item \textbf{开源项目维护者}——拥有仓库管理权限，负责处理 Issue
+    \item \textbf{核心贡献者}——经常参与项目，了解代码结构
+    \item \textbf{普通开发者}——偶尔参与项目的贡献者或用户
+\end{itemize}
+
+本产品不区分个人/企业付费模式，不涉及商业模式。随着 AI 与 DevOps 的深度融合，智能化的代码仓库管理工具将成为开发者工具链中的重要组成部分，市场需求呈现快速增长趋势。
+
+\subsection{涉众概要}
+
+\begin{ieeetable}
+    \begin{tabularx}{\textwidth}{L{4cm} X}
+        \toprule
+        \textbf{涉众} & \textbf{说明} \\
+        \midrule
+        产品经理 / 需求分析师 & 定义产品方向、管理需求、评审文档 \\
+        \midrule
+        开发团队（前端 + 后端 + AI） & 实现系统功能、维护代码质量 \\
+        \midrule
+        测试 / QA 团队 & 验证功能和性能、保证质量 \\
+        \midrule
+        开源社区 / 最终用户 & 实际使用系统的开源维护者和开发者 \\
+        \bottomrule
+    \end{tabularx}
+\end{ieeetable}
+
+\subsection{用户概要}
+
+\begin{ieeetable}
+    \begin{tabularx}{\textwidth}{L{3.5cm} L{4.5cm} X}
+        \toprule
+        \textbf{用户类型} & \textbf{描述} & \textbf{核心需求} \\
+        \midrule
+        项目维护者 & 拥有仓库管理权限，负责处理 Issue & Issue 自动分类、回复建议、自动修复 \\
+        \midrule
+        核心贡献者 & 经常参与项目，了解代码结构 & 代码问答、Issue 定位协助 \\
+        \midrule
+        普通开发者 & 偶尔参与项目的贡献者或用户 & 仓库知识问答、使用问题咨询 \\
+        \bottomrule
+    \end{tabularx}
+\end{ieeetable}
+
+产品不区分个人/企业付费用户，不涉商业模式。
+
+\subsection{关键涉众/用户需要}
+
+\begin{ieeetable}
+    \begin{tabularx}{\textwidth}{L{4cm} C{1.8cm} X}
+        \toprule
+        \textbf{需求} & \textbf{优先级} & \textbf{说明} \\
+        \midrule
+        GitHub 仓库接入 & 高 & 系统基础能力，同步元数据、文件、Issues 等 \\
+        \midrule
+        仓库知识库构建 & 高 & 文件自动分类，知识图谱与向量索引 \\
+        \midrule
+        仓库智能问答 & 高 & 基于仓库上下文的 What/Where/How 问答 \\
+        \midrule
+        Issue 智能分析 & 高 & 自动分类、重复检测、置信度评分 \\
+        \midrule
+        Web 浏览器客户端 & 高 & 响应式前端界面 \\
+        \midrule
+        自动回复草稿生成 & 中 & 为常见 Issue 类型生成回复建议 \\
+        \midrule
+        响应式界面 & 中 & 适配不同屏幕尺寸 \\
+        \midrule
+        Issue 自动修复与 PR 创建 & 中 & 自动定位、修改代码并提交 PR \\
+        \midrule
+        多项目并发处理 & 低 & 同时管理多个 GitHub 仓库 \\
+        \midrule
+        长期记忆和偏好学习 & 低 & 学习维护者偏好与历史修复模式 \\
+        \midrule
+        FAQ 自动生成 & 低 & 从历史 Issue 提取高频问题并生成 FAQ \\
+        \bottomrule
+    \end{tabularx}
+\end{ieeetable}
+
+\subsection{备选方案和竞争}
+
+\begin{ieeetable}
+    \begin{tabularx}{\textwidth}{L{4cm} X}
+        \toprule
+        \textbf{竞品} & \textbf{与我们的差异} \\
+        \midrule
+        GitHub Copilot / Copilot Chat & 代码补全和通用代码问答，无仓库级别上下文，不聚焦 Issue 管理 \\
+        \midrule
+        GitHub Issues 原生工具 & 标签 + 里程碑分类，仅能手动分类，无智能分析和自动回复 \\
+        \midrule
+        Sourcegraph & 代码搜索和导航平台，侧重代码浏览而非 Issue 管理和分析 \\
+        \midrule
+        Jira & 企业级项目管理，重量级，不适合开源社区场景 \\
+        \midrule
+        Sweep AI & 最直接竞品，自动将 Issue 转为 PR；我们覆盖更多（问答 + FAQ + 分析） \\
+        \midrule
+        CodeRabbit & AI PR 审查，从 PR 阶段切入；我们覆盖从 Issue 到修复的全流程 \\
+        \bottomrule
+    \end{tabularx}
+\end{ieeetable}
+
+% ============================================================
+%  4. 产品概述
+% ============================================================
+\section{产品概述}
+
+\subsection{产品总体效果}
+
+本系统作为连接 GitHub 仓库与智能分析的中间层平台，通过以下核心流程工作：
+
+\begin{enumerate}
+    \item 接入 GitHub 仓库，自动同步代码、Issue、PR、文档等资源
+    \item 构建项目知识库，包含文件分类、知识图谱与向量索引
+    \item 提供智能问答接口，回答仓库相关问题
+    \item 自动监听并分析新 Issue，进行分类与建议
+    \item 自动生成修复方案并发起 PR
+\end{enumerate}
+
+\subsection{功能摘要}
+
+\begin{ieeetable}
+    \begin{tabularx}{\textwidth}{L{4cm} X}
+        \toprule
+        \textbf{用户利益} & \textbf{支持特性} \\
+        \midrule
+        快速获取仓库全景信息 & GitHub 仓库一键同步 + 仪表盘展示（Stars、Forks、语言分布、文件数） \\
+        \midrule
+        了解仓库文件构成 & 文件自动分类（10 类）+ 分类统计饼图/柱状图 \\
+        \midrule
+        自动识别 Issue 类型 & Issue 规则分类（9 类）+ 置信度评分 + 分类统计 \\
+        \midrule
+        获得 Issue 处理建议 & 分类结果附带建议操作文本（自动回复草稿） \\
+        \midrule
+        实时获取新 Issue 通知 & Webhook 监听 \texttt{issues.opened} + 自动分类入库 + 更新缓存 \\
+        \midrule
+        仓库智能问答 & LLM Agent + 6 种工具调用 + 引用溯源 \\
+        \midrule
+        项目结构深度分析 & 入口文件识别、Top 目录分析、技术栈推断 \\
+        \midrule
+        Issue 自动修复 & 自动定位代码、修改并创建 PR \\
+        \midrule
+        知识图谱构建 & 文件-模块-依赖关系图谱可视化 \\
+        \midrule
+        前端通知收件箱 & Issue 分类结果角标 + 列表 + 已读/删除管理 \\
+        \bottomrule
+    \end{tabularx}
+\end{ieeetable}
+
+\subsection{假设与依赖关系}
+
+\begin{itemize}
+    \item 依赖 GitHub REST API 的可用性和速率限制
+    \item 依赖大语言模型服务的可用性与响应性能
+    \item \textbf{LLM 服务费用}：每次问答和分类调用会产生 token 费用
+    \item \textbf{GitHub API 变更}：依赖 GitHub REST API，API 版本变更可能影响功能
+    \item 假设目标仓库具有合理的目录结构和代码组织
+    \item 需要足够的存储资源以支持知识库构建
+\end{itemize}
+
+% ============================================================
+%  5. 产品特性
+% ============================================================
+\section{产品特性}
+
+\subsection{仓库接入与管理}
+
+\begin{itemize}
+    \item \textbf{认证方式}：支持 Personal Access Token（通过 \texttt{GITHUB\_TOKEN} 环境变量配置），不支持 OAuth 或 GitHub App
+    \item \textbf{接入方式}：用户输入公开 GitHub 仓库 URL，系统使用 REST API 拉取数据
+    \item \textbf{同步内容}：仓库元数据、README、目录树、Issues、PRs、Commits
+    \item \textbf{组织级批量接入}：一次接入一个指定 URL
+\end{itemize}
+
+\subsection{知识库构建}
+
+\begin{itemize}
+    \item \textbf{文件分类}：FileClassifier 按路径规则和文件名后缀判断文件类别，共 10 类（源码、测试、文档、配置、CI/CD、依赖、构建、资源、数据、其他）
+    \item \textbf{项目结构分析}：ProjectAnalysisService 自动识别技术栈、入口文件、Top 目录、测试文件和文档文件
+    \item \textbf{知识图谱}：自建 KnowledgeGraph 服务，抽取文件-目录-模块间的层级与依赖关系，支持前端可视化展示
+    \item \textbf{向量嵌入}：EmbeddingsService 为仓库内容（文件、Issue）生成向量表示，支持语义检索
+    \item \textbf{存储后端}：pgvector（与 PostgreSQL 统一）或本地 Chroma 嵌入方案
+    \item \textbf{代码分析粒度}：当前为文件级分类和项目级结构分析，可细化到函数/类级
+\end{itemize}
+
+\subsection{智能问答}
+
+系统通过 LLM Agent 引擎（AgentHarness）实现仓库上下文的智能问答，采用两轮 LLM 调用模式：
+
+\begin{enumerate}
+    \item \textbf{第一轮}：用户问题 + System Prompt + 工具定义送入 LLM，LLM 决策需要调用哪些工具获取仓库数据
+    \item \textbf{工具执行}：AgentHarness 执行 LLM 选择的工具，从仓库快照中查询数据
+    \item \textbf{第二轮}：用户问题 + 工具执行结果重新送入 LLM，LLM 生成自然语言回答并附带引用来源
+\end{enumerate}
+
+系统提供 6 种可调用工具：
+
+\begin{ieeetable}
+    \begin{tabularx}{\textwidth}{L{3cm} X}
+        \toprule
+        \textbf{工具} & \textbf{功能} \\
+        \midrule
+        repo\_overview & 获取仓库元数据（Star、Forks、语言、文件数、同步时间） \\
+        \midrule
+        project\_structure & 分析项目结构（技术栈、入口文件、Top 目录、测试/文档分布） \\
+        \midrule
+        search\_files & 按路径关键字或文件类别搜索文件 \\
+        \midrule
+        list\_issues & 按 Issue 分类或状态筛选列出 Issue \\
+        \midrule
+        readme\_lookup & 按关键字检索 README 内容片段 \\
+        \midrule
+        recent\_activity & 获取最近提交记录和 Pull Request \\
+        \bottomrule
+    \end{tabularx}
+\end{ieeetable}
+
+支持的问题类型：
+\begin{itemize}
+    \item \textbf{What 型}：询问某个模块的功能、某个文件的作用等
+    \item \textbf{Where 型}：查找特定功能在代码中的位置
+    \item \textbf{How 型}：如何使用某个 API、如何配置环境等
+    \item \textbf{Why 型}：分析 Issue 产生原因或设计决策理由
+\end{itemize}
+
+\subsection{Issue 智能分析}
+
+系统自动监听新提交的 Issue，进行多维度分析：
+
+\begin{itemize}
+    \item \textbf{类型识别}：覆盖 9 类——\texttt{BUG} / \texttt{FEATURE\_REQUEST} / \texttt{QUESTION} / \texttt{DOCUMENTATION} / \texttt{DUPLICATE} / \texttt{INFO\_NEEDED} / \texttt{INVALID} / \texttt{MAINTENANCE} / \texttt{UNKNOWN}
+    \item \textbf{自动回复}：分类结果附带 \texttt{suggested\_action} 建议文本，由维护者决定是否采纳（需要人工审核后再发布）
+    \item \textbf{置信度评分}：每条分类结果附带置信度分数
+    \item \textbf{实时监听}：通过 Webhook 接收 \texttt{issues.opened} 事件，自动分类入库
+    \item \textbf{前端通知收件箱}：Webhook 接收的新 Issue 通过前端角标提醒，支持列表查看、已读/删除管理
+    \item \textbf{详情弹窗}：点击 Issue 可查看完整分类结果、置信度、建议操作，根据分类不同展示回复或修复按钮
+\end{itemize}
+
+\subsection{Issue 自动修复与变更生成（进阶）}
+\label{sec:autofix}
+
+对于需要修改代码的 Issue：
+
+\begin{itemize}
+    \item 结合 Issue 描述、项目上下文和历史记录定位相关模块与文件
+    \item 生成修复方案并自动修改代码
+    \item 创建新分支、提交修改并发起 Pull Request（允许维护者审阅后再合并）
+    \item \textbf{测试验证}：配合测试流程验证修复正确性
+\end{itemize}
+
+\subsection{长期记忆与学习（进阶）}
+
+记录和分析项目的：
+
+\begin{itemize}
+    \item 维护者的 Review 偏好
+    \item 代码风格偏好
+    \item 历史修复模式的向量化存储
+    \item 后续 Issue 处理中自动应用积累的经验
+\end{itemize}
+
+\subsection{FAQ 知识库（进阶）}
+
+\begin{itemize}
+    \item 自动从历史 Issue 中提取高频问题，生成结构化的 FAQ 知识库
+    \item \textbf{发布方式}：系统自动生成 + 人工审核后发布
+    \item \textbf{更新频率}：定期更新或按 Issue 量触发
+\end{itemize}
+
+% ============================================================
+%  6. 约束
+% ============================================================
+\section{约束}
+
+\begin{itemize}
+    \item 系统需兼容 GitHub API v3/v4（REST + GraphQL）
+    \item 需遵守 GitHub 平台的 API 使用限制和速率限制政策
+    \item \textbf{LLM API 成本约束}：调用外部 LLM 服务有 token 费用
+    \item \textbf{公开仓库优先}：支持公开仓库，私有仓库需额外 OAuth 认证流程
+    \item 前端需适配主流浏览器（Chrome、Firefox、Safari、Edge）
+    \item 需保证用户数据安全（特别是私有仓库的代码数据）
+    \item \textbf{无合规性约束}：课程项目，不涉及合规要求
+\end{itemize}
+
+% ============================================================
+%  7. 质量属性
+% ============================================================
+\section{质量属性}
+
+\begin{ieeetable}
+    \begin{tabularx}{\textwidth}{L{3.5cm} C{2.2cm} X}
+        \toprule
+        \textbf{质量属性} & \textbf{目标值} & \textbf{验证方式} \\
+        \midrule
+        Issue 分类准确率（规则版） & $> 80\%$ & 抽取 500 条带人工标注的 Issue 测试集，对比分类结果计算准确率 \\
+        \midrule
+        Issue 分类准确率（LLM 增强） & $> 90\%$ & 同上测试集，LLM 分类结果与人工标注对比 \\
+        \midrule
+        问答准确率 & $> 80\%$ & 构建 200 组问答对测试集，由维护者评判回答是否准确有用 \\
+        \midrule
+        仓库同步成功率 & $> 95\%$ & 连续同步 100 个公开仓库，记录因网络/API 错误导致的失败次数 \\
+        \midrule
+        Webhook 事件处理延迟 & $< 5$ 秒 & 从 Webhook 接收到分类入库完成的时间差，统计 P95 分位值 \\
+        \midrule
+        前端页面加载时间 & $< 3$ 秒 & Lighthouse 性能测试，模拟 4G 网络环境取三次平均值 \\
+        \midrule
+        系统可用性 & 全天可用 & 健康检查端点（/health）每 5 分钟探测，统计月度在线时长占比 \\
+        \bottomrule
+    \end{tabularx}
+\end{ieeetable}
+
+% ============================================================
+%  8. 优先级
+% ============================================================
+\section{优先级}
+
+\begin{ieeetable}
+    \begin{tabularx}{\textwidth}{C{1.8cm} X}
+        \toprule
+        \textbf{优先级} & \textbf{范围} \\
+        \midrule
+        P1（核心） & 仓库接入、知识库构建（文件分类）、智能问答、Issue 分析、Web 客户端 \\
+        \midrule
+        P2（进阶） & 自动回复草稿、响应式界面、多项目并发 \\
+        \midrule
+        P3（增强） & Issue 自动修复与 PR、长期记忆、FAQ 生成 \\
+        \bottomrule
+    \end{tabularx}
+\end{ieeetable}
+
+% ============================================================
+%  9. 其他产品需求
+% ============================================================
+\section{其他产品需求}
+
+\subsection{适用的标准}
+
+\begin{itemize}
+    \item \textbf{安全标准}：Personal Access Token 认证与 OAuth 2.0
+    \item \textbf{通信标准}：HTTPS/TLS 加密传输，RESTful API 设计规范
+    \item \textbf{代码标准}：遵循 Semantic Versioning 语义化版本规范
+    \item \textbf{数据标准}：JSON 作为主要数据交换格式
+\end{itemize}
+
+\subsection{系统需求}
+
+\begin{ieeetable}
+    \begin{tabularx}{\textwidth}{L{3.5cm} X}
+        \toprule
+        \textbf{模块} & \textbf{选型结果} \\
+        \midrule
+        后端语言 & Python \\
+        \midrule
+        Web 框架 & FastAPI \\
+        \midrule
+        LLM 服务 & DeepSeek / OpenAI（可配置） \\
+        \midrule
+        关系数据库 & SQLite（开发）/ PostgreSQL + pgvector（生产） \\
+        \midrule
+        图数据库 & 自建 KnowledgeGraph 服务（基于文件路径和依赖分析） \\
+        \midrule
+        向量数据库 & pgvector（与 PostgreSQL 统一，降低部署复杂度） \\
+        \midrule
+        任务队列 & 当前为同步模式；后续计划 Celery + Redis \\
+        \midrule
+        部署方式 & Docker Compose（规划中） \\
+        \midrule
+        版本管理 & Git + GitHub \\
+        \midrule
+        RAG 框架 & 自研（EmbeddingsService + 知识图谱） \\
+        \midrule
+        Agent 框架 & 自研 AgentHarness（OpenAI SDK 工具调用循环） \\
+        \bottomrule
+    \end{tabularx}
+\end{ieeetable}
+
+\subsection{前端技术选型}
+
+\begin{ieeetable}
+    \begin{tabularx}{\textwidth}{L{3.5cm} X}
+        \toprule
+        \textbf{模块} & \textbf{选型结果} \\
+        \midrule
+        前端框架 & React + Vite + TypeScript \\
+        \midrule
+        UI 组件库 & lucide-react 图标 + Shadcn/ui（基于 Tailwind，渐进式引入） \\
+        \midrule
+        CSS 方案 & Tailwind CSS \\
+        \bottomrule
+    \end{tabularx}
+\end{ieeetable}
+
+\subsection{环境需求}
+
+\begin{itemize}
+    \item 前端为浏览器端应用，不依赖客户端安装
+    \item 后端可部署于云服务器或私有服务器
+    \item 需要稳定的网络连接以访问 GitHub API 和 LLM 服务
+    \item 提供 Docker Compose 一键部署方案（后端 + 前端 + 数据库 + 任务队列统一编排）
+\end{itemize}
+
+% ============================================================
+%  10. 文档需求
+% ============================================================
+\section{文档需求}
+
+\subsection{用户手册}
+
+提供以下内容的用户操作指南：
+\begin{itemize}
+    \item Web 界面操作指南（仓库接入、查看分析、提问、Issue 处理）
+    \item API 开发者文档（FastAPI 自动生成 Swagger UI）
+\end{itemize}
+
+由于系统是 API 驱动的，API 文档重要性高。API 框架内置 Swagger UI 自动生成。
+
+\subsection{联机帮助}
+
+\begin{itemize}
+    \item 悬浮 tooltip（表单字段提示、图表说明）
+    \item 引导教程
+\end{itemize}
+
+\subsection{安装指南与自述文件}
+
+提供系统部署文档，包括：
+\begin{itemize}
+    \item 环境要求
+    \item 安装步骤（Docker Compose 一键部署方案）
+    \item 配置文件说明
+    \item 常见问题解答
+\end{itemize}
+
+\end{document}
