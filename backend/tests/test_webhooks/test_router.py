@@ -226,7 +226,6 @@ def test_list_events_respects_limit(client, clear_store):
             headers={"X-GitHub-Event": "issues", "X-GitHub-Delivery": f"evt-limit-{i}"},
         )
         assert resp.status_code == 200, f"POST {i} failed: {resp.json()}"
-
     resp = client.get("/api/webhooks/events?limit=3")
     assert len(resp.json()) == 3
 
@@ -379,22 +378,22 @@ def test_list_events_includes_title_and_labels(client, clear_store):
     assert evt["classification"]["suggested_action"] is not None
 
 
-def test_list_events_non_opened_still_excluded(client, clear_store):
-    """Non-'opened' events are still excluded from the list."""
+def test_list_events_edited_still_excluded(client, clear_store):
+    """'edited' events are still excluded from the list."""
     payload = {
-        "action": "closed",
-        "issue": {"title": "Already fixed", "body": "", "number": 99, "labels": []},
+        "action": "edited",
+        "issue": {"title": "Edited title", "body": "", "number": 99, "labels": []},
         "repository": {"full_name": "o/r"},
     }
     client.post(
         "/api/webhooks/github",
         json=payload,
-        headers={"X-GitHub-Event": "issues", "X-GitHub-Delivery": "evt-closed-1"},
+        headers={"X-GitHub-Event": "issues", "X-GitHub-Delivery": "evt-edited-1"},
     )
 
     resp = client.get("/api/webhooks/events")
     ids = [e["event_id"] for e in resp.json()]
-    assert "evt-closed-1" not in ids
+    assert "evt-edited-1" not in ids
 
 
 def test_webhook_config_never_returns_secret(secured_client):

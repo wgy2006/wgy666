@@ -158,6 +158,40 @@ async def handle_issue_event(payload: dict, delivery_id: str | None = None) -> W
     repository snapshot if the repo has been synced.
     """
     action = payload.get("action", "")
+    issue_data = payload.get("issue", {})
+    repo_data = payload.get("repository", {})
+    issue_number = issue_data.get("number", 0)
+    full_name = repo_data.get("full_name", "")
+
+    if not full_name or not issue_number:
+        return None
+
+    # Handle state changes (closed / reopened) — update snapshot only.
+    if action in ("closed", "reopened"):
+        issue_state = action  # "closed" or "reopened"
+        if "/" in full_name:
+            owner, name = full_name.split("/", 1)
+            existing = repository_store.get(owner, name)
+            if existing is not None:
+                for i, iss in enumerate(existing.issues):
+                    if iss.number == issue_number:
+                        existing.issues[i].state = issue_state
+                        break
+                repository_store.save(existing)
+        # Record the event for notification (no LLM classification needed).
+        record = WebhookEventRecord(
+            event_id=delivery_id or "",
+            event_type="issues", action=action,
+            repository=full_name, issue_number=issue_number,
+            issue_title=issue_data.get("title") or "",
+            issue_state=issue_state,
+            received_at=datetime.now(timezone.utc),
+            raw_payload=payload,
+        )
+        webhook_event_store[delivery_id or str(issue_number)] = record
+        _persist_event(record)
+        return record
+
     if action != "opened":
         return None
 

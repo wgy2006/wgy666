@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -42,9 +43,6 @@ async def github_webhook(
         raise HTTPException(status_code=400, detail="Invalid JSON body") from exc
 
     await dispatch_event(x_github_event, payload, delivery_id=x_github_delivery)
-
-    # Auto-reply is not posted automatically; maintainers approve it first.
-
     return {"status": "ok"}
 
 
