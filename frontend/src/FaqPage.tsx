@@ -65,6 +65,12 @@ export default function FaqPage({ owner, name }: { owner: string; name: string }
     try {
       const response = await fetch(`${API_BASE_URL}/api/faq/generate?owner=${owner}&name=${name}`, { method: 'POST' })
       if (!response.ok) throw new Error(await responseError(response, 'FAQ 自动生成失败'))
+      const data = await response.json()
+      if (data.reason) {
+        setFaqError(data.reason)
+      } else {
+        setFaqError('')
+      }
       await loadFaq()
     } catch (error) {
       setFaqError(error instanceof Error ? error.message : 'FAQ 自动生成失败')
@@ -158,3 +164,4 @@ async function responseError(response: Response, fallback: string): Promise<stri
   const body = await response.json().catch(() => null)
   return body?.detail ?? `${fallback}（${response.status}）`
 }
+
