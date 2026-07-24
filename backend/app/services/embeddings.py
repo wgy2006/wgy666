@@ -32,6 +32,7 @@ Priority:
 from __future__ import annotations
 
 import hashlib
+import logging
 import math
 import re
 
@@ -39,12 +40,17 @@ from openai import OpenAI, OpenAIError
 
 from app.core.config import settings
 
+logger = logging.getLogger(__name__)
+
 
 class EmbeddingService:
     """Multi-backend embedding with automatic fallback.
 
     统一的 Embedding 接口，内部自动选择可用的最佳后端。
     """
+
+    _last_backend = "not_used"
+    _last_error: str | None = None
 
     def __init__(self, dimensions: int | None = None) -> None:
         # 向量维度数，默认为配置中指定的值
@@ -71,20 +77,27 @@ class EmbeddingService:
         # 1. 远程 API：优先使用，支持 OpenAl 兼容的 embedding 服务
         if settings.embedding_api_key:
             try:
-                return self._remote_embeddings(texts)
-            except (OpenAIError, TypeError, ValueError):
-                pass  # 静默降级，不阻断后续回退路径
+                vectors = self._remote_embeddings(texts)
+                type(self)._last_backend = "remote"
+                type(self)._last_error = None
+                return vectors
+            except (OpenAIError, TypeError, ValueError) as exc:
+                type(self)._last_error = str(exc)
+                logger.warning("Remote embedding failed; trying fallback: %s", exc)
 
         # 2. 本地 sentence-transformers 模型：离线/降级方案
         local = _get_local_service()
         if local is not None:
             try:
-                return local.embed(texts)
-            except Exception:
-                pass
+                vectors = local.embed(texts)
+                type(self)._last_backend = "local"
+                return vectors
+            except Exception as exc:
+                type(self)._last_error = str(exc)
+                logger.warning("Local embedding failed; using hash fallback: %s", exc)
 
-        # 3. 哈希兜底：纯确定性伪向量（仅限开发环境）
-        # 注意：同一文本始终生成相同向量，但不同文本的余弦相似度无实际语义意义
+        # 3. Hash fallback (deterministic, no semantics — dev only)
+        type(self)._last_backend = "hash_fallback"
         return [self._hash_embedding(text) for text in texts]
 
     def embed_query(self, text: str) -> list[float]:
@@ -116,15 +129,22 @@ class EmbeddingService:
             ValueError: 返回向量数量与输入不匹配。
         """
         client = OpenAI(api_key=settings.embedding_api_key, base_url=settings.embedding_api_base_url)
-        kwargs: dict = {"model": settings.embedding_model, "input": texts}
-        # text-embedding-3 系列支持指定输出维度，减少不必要的向量开销
-        if "text-embedding-3" in settings.embedding_model:
-            kwargs["dimensions"] = self.dimensions
-        response = client.embeddings.create(**kwargs)
-        vectors = [item.embedding for item in response.data]
+        vectors: list[list[float]] = []
+        batch_size = settings.embedding_batch_size
+        for start in range(0, len(texts), batch_size):
+            batch = texts[start:start + batch_size]
+            kwargs: dict = {"model": settings.embedding_model, "input": batch}
+            if "text-embedding-3" in settings.embedding_model:
+                kwargs["dimensions"] = self.dimensions
+            response = client.embeddings.create(**kwargs)
+            vectors.extend(item.embedding for item in response.data)
         if len(vectors) != len(texts):
             raise ValueError("Embedding response size does not match input size.")
         return vectors
+
+    @classmethod
+    def backend_status(cls) -> tuple[str, str | None]:
+        return cls._last_backend, cls._last_error
 
     def _hash_embedding(self, text: str) -> list[float]:
         """基于 BLAKE2b 哈希生成伪向量（确定性、无语义）。

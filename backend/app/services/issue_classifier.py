@@ -47,7 +47,6 @@ from __future__ import annotations
 
 from collections import Counter
 import json
-import re
 
 from openai import AsyncOpenAI
 
@@ -193,35 +192,18 @@ class IssueClassifier:
         body: str | None,
         labels: list[str],
     ) -> IssueClassification:
-        """Two-stage classification: LLM first, rule fallback.
-
-        When the LLM is available, it always runs — the rule result is
-        used only as a fallback when the LLM call fails.
-
-        策略：LLM 优先，规则兜底。
-
-        并非根据置信度阈值决定是否调用 LLM，而是 LLM 可用时始终调用；
-        仅在 LLM 调用失败时回退到纯规则分类结果。
-
-        这样做的原因：
-          LLM 相对于关键词规则的判别力有明显优势，应尽量使用 LLM；
-          规则分类仅作为 LLM 不可用时的兜底保障。
-
-        Args:
-            title:  Issue 标题。
-            body:   Issue 正文。
-            labels: 标签列表。
-
-        Returns:
-            IssueClassification 分类结果。
-        """
-        if self._llm_available:
+        """Use rules first and call the LLM only for uncertain results."""
+        rule_result = self.classify(title, body, labels)
+        uncertain = (
+            rule_result.category == IssueCategory.UNKNOWN
+            or rule_result.confidence <= _LLM_THRESHOLD
+        )
+        if self._llm_available and uncertain:
             llm_result = await self._llm_classify(title, body, labels)
             if llm_result is not None:
                 return llm_result
 
-        # LLM 失败时回退到纯规则
-        return self.classify(title, body, labels)
+        return rule_result
 
     async def _llm_classify(
         self,

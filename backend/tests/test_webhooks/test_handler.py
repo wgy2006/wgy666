@@ -111,10 +111,16 @@ def test_handle_question_issue():
 
 
 def test_handle_issue_ignores_non_opened():
-    """Non-'opened' actions are silently ignored."""
-    for action in ("edited", "closed", "reopened", "labeled"):
+    """Only 'opened', 'closed', and 'reopened' are handled."""
+    for action in ("edited", "labeled"):
         payload = _make_issue_payload(action=action, number=103)
         assert asyncio.run(handle_issue_event(payload)) is None, f"action={action} should be ignored"
+    # reopened is fully handled (like opened), closed stores event.
+    for action in ("closed", "reopened"):
+        payload = _make_issue_payload(action=action, number=104)
+        result = asyncio.run(handle_issue_event(payload))
+        assert result is not None, f"action={action} should be handled"
+        assert result.action == action
 
 
 def test_handle_issue_missing_repo():

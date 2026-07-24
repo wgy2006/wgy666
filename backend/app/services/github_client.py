@@ -317,11 +317,10 @@ class GitHubClient:
         raw = payload.get("content")
         if not raw:
             return None, False
-        decoded = base64.b64decode(raw).decode("utf-8", errors="replace")
-        byte_length = len(decoded.encode("utf-8"))
-        # 截断检测：解码后的字节数 > 上限，或 API 声明的 size > 上限
-        truncated = byte_length > max_bytes or (payload.get("size") or 0) > max_bytes
-        return decoded[:max_bytes], truncated
+        decoded_bytes = base64.b64decode(raw)
+        truncated = len(decoded_bytes) > max_bytes or (payload.get("size") or 0) > max_bytes
+        decoded = decoded_bytes[:max_bytes].decode("utf-8", errors="ignore")
+        return decoded, truncated
 
     # -- Issues, PRs, Commits -----------------------------------------------
     # Issue / Pull Request / Commit 相关接口
@@ -344,12 +343,30 @@ class GitHubClient:
         """
         if limit <= 0:
             return []
-        payload = await self._get(
-            f"/repos/{ref.owner}/{ref.name}/issues",
-            params={"state": "all", "sort": "updated", "direction": "desc", "per_page": min(limit, 100)},
-        )
-        # 过滤掉 GitHub API 视为 issue 但实际上是 PR 的条目
-        return [issue for issue in payload[:limit] if "pull_request" not in issue]
+        issues: list[dict[str, Any]] = []
+        page = 1
+        per_page = min(100, max(limit, 30))
+        while len(issues) < limit:
+            payload = await self._get(
+                f"/repos/{ref.owner}/{ref.name}/issues",
+                params={
+                    "state": "all",
+                    "sort": "updated",
+                    "direction": "desc",
+                    "per_page": per_page,
+                    "page": page,
+                },
+            )
+            if not payload:
+                break
+            issues.extend(
+                issue for issue in payload
+                if "pull_request" not in issue
+            )
+            if len(payload) < per_page:
+                break
+            page += 1
+        return issues[:limit]
 
     async def get_pull_requests(self, ref: RepositoryRef, limit: int) -> list[dict[str, Any]]:
         """Return recent pull requests, sorted by last updated.

@@ -36,14 +36,14 @@ instead of the GitHub tree/content API to avoid rate-limit exhaustion.
     )
 """
 
+import asyncio
 from datetime import datetime, timezone
 from typing import Any
 
 from app.core.config import settings
 
-from app.schemas.issue import GitHubIssue, IssueCategory
+from app.schemas.issue import GitHubIssue
 from app.schemas.repository import (
-    ClassifiedFile,
     CommitSummary,
     FileCategory,
     PullRequestSummary,
@@ -69,6 +69,7 @@ class RepositorySyncService:
     def __init__(self) -> None:
         self.file_classifier = FileClassifier()
         self.issue_classifier = IssueClassifier()
+        self._issue_llm_limit = asyncio.Semaphore(4)
 
     async def sync(self, request: SyncRepositoryRequest) -> RepositorySnapshot:
         """Execute a full repository sync and return the resulting snapshot.
@@ -89,43 +90,43 @@ class RepositorySyncService:
             RepositorySnapshot: 组装好的完整仓库快照。
         """
         ref = parse_github_repository_url(request.url)
-
-        # 构造克隆 URL：有 token 时使用认证 URL（避免 API 频率限制）
-        if settings.github_token:
-            # 认证克隆：使用 x-access-token 方式嵌入 token
-            clone_url = f"https://x-access-token:{settings.github_token}@github.com/{ref.owner}/{ref.name}.git"
-        else:
-            clone_url = f"https://github.com/{ref.owner}/{ref.name}.git"
+        clone_url = f"https://github.com/{ref.owner}/{ref.name}.git"
 
         # ── Phase 1: GitHub API 数据获取 ───────────────────────────────
         # 并行获取仓库元数据、语言、README、Issues、PRs、Commits
         async with GitHubClient() as client:
-            repository = await client.get_repository(ref)
-            languages = await client.get_languages(ref)
-            readme = await client.get_readme(ref)
+            repository, languages, readme, issues, pulls, commits = await asyncio.gather(
+                client.get_repository(ref),
+                client.get_languages(ref),
+                client.get_readme(ref),
+                client.get_issues(ref, request.max_issues),
+                client.get_pull_requests(ref, request.max_pull_requests),
+                client.get_commits(ref, request.max_commits),
+            )
             branch = repository.get("default_branch") or "main"
-            issues = await client.get_issues(ref, request.max_issues)
-            pulls = await client.get_pull_requests(ref, request.max_pull_requests)
-            commits = await client.get_commits(ref, request.max_commits)
 
-        # ── Phase 2: 本地文件分类 + 源码内容获取（git clone）────────────
-        async with GitCloneService(clone_url) as git_clone:
-            # Channel A: 随机采样用于准确的类别统计
-            tree = git_clone.walk_files(limit=request.max_tree_items)
+        # -- File classification + source content from git clone --------------
+        async with GitCloneService(clone_url, token=settings.github_token) as git_clone:
+            # Channel A: random sample for accurate category statistics
+            tree = await asyncio.to_thread(
+                git_clone.walk_files, request.max_tree_items,
+            )
             files, file_categories = self.file_classifier.classify_many(
                 tree, request.max_tree_items
             )
 
-            # Channel B: 全量扫描所有可索引文件（用于 RAG 向量化）
-            source_contents = self._clone_all_indexable_files(
+            # Channel B: full scan of all indexable files for RAG vectorization
+            source_contents = await asyncio.to_thread(
+                self._clone_all_indexable_files,
                 git_clone,
                 self.file_classifier,
-                max_files=settings.rag_max_source_files,
-                max_bytes=settings.rag_max_source_file_bytes,
+                settings.rag_max_source_files,
+                settings.rag_max_source_file_bytes,
             )
 
-        # ── Phase 3: Issue 分类（每个 Issue 独立异步分类）──────────────
-        classified_issues = [await self._map_issue(issue) for issue in issues]
+        classified_issues = list(await asyncio.gather(
+            *(self._map_issue(issue) for issue in issues)
+        ))
         issue_categories = self.issue_classifier.summarize(
             [issue.classification.category for issue in classified_issues]
         )
@@ -276,12 +277,12 @@ class RepositorySyncService:
             已分类的 GitHubIssue 模型。
         """
         labels = [label["name"] for label in payload.get("labels", []) if "name" in label]
-        # 两阶段分类：规则 + LLM 兜底
-        classification = await self.issue_classifier.async_classify(
-            title=payload.get("title") or "",
-            body=payload.get("body"),
-            labels=labels,
-        )
+        async with self._issue_llm_limit:
+            classification = await self.issue_classifier.async_classify(
+                title=payload.get("title") or "",
+                body=payload.get("body"),
+                labels=labels,
+            )
         return GitHubIssue(
             number=payload["number"],
             title=payload.get("title") or "",

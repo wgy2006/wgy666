@@ -49,7 +49,7 @@ class RepositoryQueryService:
         self,
         owner: str,
         name: str,
-        freshness: FreshnessMode = FreshnessMode.REFRESH_IF_STALE,
+        freshness: FreshnessMode = FreshnessMode.CACHE_FIRST,
     ) -> tuple[RepositorySnapshot, bool]:
         """获取仓库快照，按指定新鲜度模式决定是否触发同步。
 
