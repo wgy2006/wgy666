@@ -166,6 +166,26 @@ function App() {
     })()
   }, [])
 
+  // -- Load synced repo list on mount + auto-select last one ----------------
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const repos = await fetchRepositoryList()
+        setRepoList(repos)
+        if (repos.length > 0) {
+          const last = localStorage.getItem('lastRepo') || `${repos[0].owner}/${repos[0].name}`
+          const match = repos.find(r => `${r.owner}/${r.name}` === last)
+          if (match) {
+            const snap = await fetchRepositorySnapshot(match.owner, match.name)
+            setSnapshot(snap)
+            setForm(f => ({ ...f, url: match.html_url }))
+          }
+        }
+      } catch { /* no cached repos */ }
+    })()
+  }, [])
+
   // -- Sync form handler --------------------------------------------------
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {

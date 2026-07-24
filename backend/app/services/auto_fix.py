@@ -5,6 +5,20 @@ generate fix → create branch → commit files → open pull request.
 
 Steps ③④⑤ (create branch → commit files → open PR) use the GitHub Contents API.
 Steps ①② (RAG locate + LLM fix generation) use AgentHarness with tool-calling.
+
+====================================================================
+自动修复 Pull Request 服务
+====================================================================
+
+编排完整的自动修复流水线：
+  - 使用 AgentHarness 分析 bug issue → 生成修复代码 → 创建分支 → 提交文件 → 打开 PR。
+  - 步骤 ③④⑤（创建分支 → 提交文件 → 打开 PR）使用 GitHub Contents API 执行。
+  - 步骤 ①②（RAG 定位问题代码 + LLM 生成修复）使用 AgentHarness 调用工具链完成。
+
+模型说明：
+  - FixProposal: 分析和生成修复代码后的中间结果，包含分支名、PR 标题、PR 描述、文件变更列表。
+  - FixFileChange: 单文件变更描述，可表示新建文件或覆盖已有文件（sha 为 None 表示新建）。
+  - FixResult:  自动修复的最终结果，记录是否成功、PR 链接、分支名及错误信息。
 """
 
 from __future__ import annotations
@@ -23,7 +37,14 @@ from app.storage import repository_store
 
 @dataclass
 class FixProposal:
-    """The result of analysing a bug issue and generating a fix."""
+    """The result of analysing a bug issue and generating a fix.
+
+    Attributes:
+        branch_name: 新分支名称，例如 ``auto-fix/issue-42``。
+        title:       修复 PR 的标题。
+        pr_body:     PR 正文，说明修复内容。
+        files:       需要修改或新增的文件列表（FixFileChange 列表）。
+    """
 
     branch_name: str
     title: str
@@ -33,7 +54,15 @@ class FixProposal:
 
 @dataclass
 class FixFileChange:
-    """One file to create or update as part of a fix."""
+    """One file to create or update as part of a fix.
+
+    Attributes:
+        path:          文件在仓库中的相对路径（如 ``src/main.py``）。
+        content:       文件的完整新内容（UTF-8 格式）。
+        commit_message: 针对该文件的 commit message。
+        sha:           文件的当前 SHA 用于更新已有文件；``None`` 表示新建文件。
+                       （从 Files API 获取，用于防止覆盖他人的并发修改）
+    """
 
     path: str
     content: str
@@ -43,7 +72,14 @@ class FixFileChange:
 
 @dataclass
 class FixResult:
-    """Result of attempting an auto-fix."""
+    """Result of attempting an auto-fix.
+
+    Attributes:
+        success:      修复是否成功。
+        pr_url:       成功时指向 PR 的 HTML 链接。
+        branch_name:  创建的分支名。
+        error:        失败时的错误说明。
+    """
 
     success: bool
     pr_url: str | None = None
@@ -55,6 +91,9 @@ class FixResult:
 
 class AutoFixService:
     """Analyse a bug issue and create a fix pull request.
+
+    通过 AgentHarness 调用 LLM，分析 issue 并在仓库中定位问题代码，
+    生成修复方案，然后通过 GitHub API 创建分支、提交文件并打开 Pull Request。
 
     Usage::
 
@@ -69,6 +108,7 @@ class AutoFixService:
     """
 
     def __init__(self) -> None:
+        # 检查是否配置了 LLM API key，未配置则无法生成修复
         self._llm_available = bool(settings.llm_api_key)
 
     async def fix_issue(
@@ -80,15 +120,38 @@ class AutoFixService:
         issue_body: str | None,
         labels: list[str],
     ) -> FixResult:
-        """Full auto-fix pipeline: analyse → generate → branch → commit → PR."""
+        """Full auto-fix pipeline: analyse → generate → branch → commit → PR.
+
+        完整流水线步骤：
+            ① 使用 AgentHarness 探索仓库并定位问题文件
+            ② LLM 生成修复代码（JSON 格式输出）
+            ③ 在 GitHub 上创建新分支
+            ④ 逐一提交每个文件的修改
+            ⑤ 打开 Pull Request
+
+        Args:
+            owner:       仓库所有者。
+            name:        仓库名。
+            issue_number: 要修复的 issue 编号。
+            issue_title:  Issue 标题。
+            issue_body:   Issue 正文。
+            labels:       Issue 标签列表（用于辅助上下文理解）。
+
+        Returns:
+            FixResult 包含成功状态、PR 链接或错误信息。
+        """
         if not self._llm_available:
             return FixResult(success=False, error="LLM is not configured")
 
         ref = RepositoryRef(owner=owner, name=name)
+
         suffix = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")[:17]
         branch_name = f"auto-fix/issue-{issue_number}-{suffix}"
 
+
         # ── Step ①②: Use AgentHarness to locate files + generate fix ──
+        # AgentHarness 通过 RAG 知识图谱搜索 + 文件搜索工具定位相关代码，
+        # 然后由 LLM 生成修复方案，以 JSON 格式返回文件变更列表。
         fix_proposal = await self._generate_fix_with_harness(
             owner, name, issue_number, issue_title, issue_body, labels, branch_name,
         )
@@ -164,7 +227,27 @@ class AutoFixService:
 
         The LLM calls tools (search_files, knowledge_graph_search) to
         understand the issue, then outputs a JSON block with file changes.
+
+        工作流程：
+        1. 从 repository_store 获取已同步的仓库快照。
+        2. 构造 system prompt，告知 LLM 使用工具探索仓库、定位根因、生成修复。
+        3. LLM 调用 search_files / knowledge_graph_search 等工具获取上下文。
+        4. LLM 最终输出一个 JSON 块，包含修复后的文件内容。
+        5. 解析 JSON → 为每个已有文件查询当前 SHA → 返回 FixProposal。
+
+        Args:
+            owner:        仓库所有者。
+            name:         仓库名。
+            issue_number: Issue 编号。
+            issue_title:  Issue 标题。
+            issue_body:   Issue 正文。
+            labels:       Issue 标签。
+            branch_name:  目标分支名。
+
+        Returns:
+            FixProposal 或 None（LLM 未能生成有效结果时）。
         """
+        # 获取已同步的仓库快照（包含文件树、知识图谱等）；未同步则无法分析
         snapshot = repository_store.get(owner, name)
         if snapshot is None:
             return FixProposal(branch_name=branch_name, title="", pr_body="Repository not synced yet.", files=[])
@@ -224,16 +307,20 @@ class AutoFixService:
             },
         ]
 
+        # 调用 AgentHarness 执行工具链（RAG 搜索 + LLM 推理）
         final_text, _ = await harness.run(messages, snapshot)
         if not final_text:
             return None
 
-        # Parse the JSON block from the response.
+        # 从 LLM 响应中解析 JSON 块。
+        # 策略 1：匹配 ```json ... ``` 形式的代码块
         json_match = re.search(r'```json\s*(\{.*?\})\s*```', final_text, re.DOTALL)
         if not json_match:
-            # Try finding any JSON object as fallback.
+            # 策略 2（兜底）：在文本中查找任何包含 "files" 字段的 JSON 对象
+            # 用于处理 LLM 未正确使用 markdown 代码块的情况
             json_match = re.search(r'(\{.*?"files"\s*:.*?\})', final_text, re.DOTALL)
         if not json_match:
+            # 无法解析 JSON，将原始响应截取前 500 字符放入 pr_body 用于人工审核
             return FixProposal(
                 branch_name=branch_name, title="",
                 pr_body=final_text[:500],
@@ -257,7 +344,8 @@ class AutoFixService:
                 files=[],
             )
 
-        # Resolve SHAs for existing files by fetching current file metadata.
+        # 为已有文件查询当前 SHA，防止覆盖他人的并发修改。
+        # 通过 GitHub Contents API 获取文件元数据中的 SHA。
         async with GitHubClient() as gh:
             files: list[FixFileChange] = []
             for f in files_raw:
@@ -265,7 +353,7 @@ class AutoFixService:
                 content = f.get("content", "")
                 commit_msg = f.get("commit_message", f"fix: {issue_title[:60]}")
 
-                # Try to get SHA for existing file.
+                # 尝试获取已有文件的 SHA
                 sha = None
                 try:
                     existing = await gh.get_file_content(
@@ -273,10 +361,10 @@ class AutoFixService:
                     )
                     if existing[0] is not None:
                         # Need SHA from the contents API response.
-                        # Use a HEAD request to get it.
                         from urllib.parse import quote
                         encoded_path = quote(path, safe="/")
                         try:
+                            # 直接通过 _get 访问 Contents API 获取完整元数据
                             payload = await gh._get(
                                 f"/repos/{ref.owner}/{ref.name}/contents/{encoded_path}",
                                 params={"ref": snapshot.identity.default_branch},

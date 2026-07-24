@@ -1,4 +1,44 @@
-"""Build and search a graph-enhanced RAG knowledge base from repository data."""
+"""Build and search a graph-enhanced RAG knowledge base from repository data.
+
+====================================================================
+图增强 RAG 知识图谱构建与搜索服务
+====================================================================
+
+将已同步的仓库快照（RepositorySnapshot）转换为结构化的知识图谱，包含：
+
+  1. 节点（KnowledgeNode）类型：
+     - repository         仓库根节点，包含元数据（owner、语言、topics）。
+     - directory          目录节点，包含文件数量和各分类统计。
+     - module             推断的代码模块（包含源码文件的目录）。
+     - dependency_manifest 依赖清单节点（requirements.txt / package.json 等）。
+     - test_suite / test_file  测试套件和测试文件节点。
+     - documentation      文档节点（README）。
+
+  2. 边（KnowledgeEdge）关系：
+     - contains          仓库→目录
+     - defines_module    目录→模块
+     - uses_dependency_manifest  仓库→依赖清单
+     - tests_with / tests_module 测试→仓库/模块
+     - documents         仓库→文档
+
+  3. 文本分块（KnowledgeChunk）策略：
+     - overview_chunk         仓库总览（语言、目录数、模块数等）。
+     - directory_chunks       目录结构分块。
+     - module_chunks          模块映射分块。
+     - dependency_chunks      依赖关系分块。
+     - test_chunks            测试脚本 + README 测试提示。
+     - source_content_chunks  源码内容分块（滑动窗口 + 重叠，默认 chunk_size=1024, overlap=128）。
+
+  4. 搜索（search）：
+     - 构建图谱 → 对所有 chunk 打分 → 按分数降序返回 top-N 结果。
+     - 支持中文关键词别名翻译（目录→directory，模块→module 等）。
+     - 分数计算：查询词命中 +1，路径命中 +1，focus 匹配 +2。
+
+设计思路：
+  - 轻量无依赖：不依赖 Neo4j / Milvus 等外部服务，纯内存计算。
+  - 按需构建：每次 search() 都重新构建图谱，保证数据与最新的 snapshot 一致。
+  - 多粒度分块：总览→目录→模块→依赖→测试→源码，保证不同层级的检索需求。
+"""
 
 from collections import Counter, defaultdict
 from pathlib import PurePosixPath
@@ -16,6 +56,7 @@ from app.schemas.knowledge import (
 from app.schemas.repository import ClassifiedFile, RepositorySnapshot
 
 
+# 依赖清单文件名 → 生态系统的映射
 DEPENDENCY_ECOSYSTEMS = {
     "requirements.txt": "Python/pip",
     "pyproject.toml": "Python",
@@ -31,6 +72,7 @@ DEPENDENCY_ECOSYSTEMS = {
     "build.gradle": "Java/Gradle",
 }
 
+# README 中可能出现的测试命令提示词
 TEST_HINTS = {
     "pytest": "pytest",
     "vitest": "vitest",
@@ -44,13 +86,34 @@ TEST_HINTS = {
 
 
 class KnowledgeGraphService:
-    """Create lightweight graph/RAG artifacts from synced repository snapshots."""
+    """Create lightweight graph/RAG artifacts from synced repository snapshots.
+
+    从同步好的仓库快照构建图/RAG 产物，支持结构化和语义搜索。
+    """
 
     def build(self, snapshot: RepositorySnapshot) -> RepositoryKnowledgeGraph:
+        """将仓库快照构建为完整的知识图谱。
+
+        构建流程：
+          1. 创建仓库根节点（含元数据摘要）。
+          2. 按顶层目录分组，为每个目录创建 directory 节点，
+             如果目录含源码文件，再创建对应的 module 节点。
+          3. 识别依赖清单文件，创建 dependency_manifest 节点。
+          4. 识别测试文件，创建 test_suite / test_file 节点。
+          5. 识别 README，创建 documentation 节点。
+          6. 生成 6 类文本分块：总览、目录、模块、依赖、测试、源码内容。
+
+        Args:
+            snapshot: 已同步的仓库快照。
+
+        Returns:
+            完整的 RepositoryKnowledgeGraph 对象（节点 + 边 + 分块）。
+        """
         nodes: dict[str, KnowledgeNode] = {}
         edges: list[KnowledgeEdge] = []
         chunks: list[KnowledgeChunk] = []
 
+        # 1. 仓库根节点
         repo_key = "repo"
         nodes[repo_key] = KnowledgeNode(
             key=repo_key,
@@ -66,12 +129,20 @@ class KnowledgeGraphService:
             },
         )
 
+        # 2. 目录 + 模块节点
         directories = self._group_by_top_directory(snapshot.files)
         module_keys = self._add_directory_and_module_nodes(nodes, edges, repo_key, directories)
+
+        # 3. 依赖节点
         dependency_keys = self._add_dependency_nodes(nodes, edges, repo_key, snapshot.files)
+
+        # 4. 测试节点
         test_keys = self._add_test_nodes(nodes, edges, repo_key, module_keys, snapshot.files)
+
+        # 5. README 节点
         readme_key = self._add_readme_node(nodes, edges, repo_key, snapshot)
 
+        # 6. 生成各类文本分块
         chunks.extend(self._overview_chunks(snapshot, module_keys, dependency_keys, test_keys, readme_key))
         chunks.extend(self._directory_chunks(nodes, directories))
         chunks.extend(self._module_chunks(nodes, directories, module_keys))
@@ -93,6 +164,23 @@ class KnowledgeGraphService:
         focus: str | None = None,
         limit: int = 5,
     ) -> list[KnowledgeSearchResult]:
+        """在图谱中搜索与查询词/焦点相关的分块。
+
+        工作流程：
+          1. 调用 build() 构建完整知识图谱（每次均重新构建以保持数据一致）。
+          2. 对每个 chunk 调用 _score_chunk() 计算相关性分数。
+          3. 关联 chunk 的节点和边信息，丰富返回结果。
+          4. 按分数降序排序，返回 top-N（默认 5）。
+
+        Args:
+            snapshot: 已同步的仓库快照。
+            query:    搜索查询文本。
+            focus:    焦点过滤器，如 "modules"、"dependencies"、"tests" 等。
+            limit:    最多返回的结果数量。
+
+        Returns:
+            按相关性分数降序排列的搜索结果列表。
+        """
         graph = self.build(snapshot)
         query_terms = self._terms(f"{query or ''} {focus or ''}")
         focus_text = (focus or "").lower().strip()
@@ -100,9 +188,11 @@ class KnowledgeGraphService:
         results: list[KnowledgeSearchResult] = []
 
         for chunk in graph.chunks:
+            # 对每个 chunk 计算与查询的相关性分数
             score = self._score_chunk(chunk, query_terms, focus_text)
             if score <= 0 and query_terms:
-                continue
+                continue  # 无命中则跳过
+            # 关联与该 chunk 相关的边（最多 8 条）
             related_edges = [
                 edge for edge in graph.edges
                 if edge.source in chunk.node_keys or edge.target in chunk.node_keys
@@ -121,6 +211,9 @@ class KnowledgeGraphService:
             return results[:limit]
         return results[:limit]
 
+    # ── Node construction helpers ──────────────────────────────────────
+    # 以下是各种节点的构建辅助方法
+
     def _add_directory_and_module_nodes(
         self,
         nodes: dict[str, KnowledgeNode],
@@ -128,6 +221,11 @@ class KnowledgeGraphService:
         repo_key: str,
         directories: dict[str, list[ClassifiedFile]],
     ) -> dict[str, str]:
+        """为每个顶层目录创建 directory 节点，如果含源码则再创建 module 节点。
+
+        Returns:
+            {目录名: module_key} 映射，仅有源码文件的目录才有 module_key。
+        """
         module_keys: dict[str, str] = {}
         for directory, files in sorted(directories.items()):
             categories = Counter(file.category.value for file in files)
@@ -145,6 +243,7 @@ class KnowledgeGraphService:
             )
             edges.append(KnowledgeEdge(source=repo_key, target=directory_key, relation="contains"))
 
+            # 如果目录中包含源代码文件，推断为模块并创建 module 节点
             source_files = [file for file in files if file.category.value == "source_code"]
             if source_files:
                 module_key = f"module:{directory}"
@@ -173,10 +272,12 @@ class KnowledgeGraphService:
         repo_key: str,
         files: list[ClassifiedFile],
     ) -> list[str]:
+        """为依赖清单文件创建节点，关联对应的生态系统。"""
         keys: list[str] = []
         dependency_files = [file for file in files if file.category.value == "dependency"]
         for file in dependency_files:
             file_name = PurePosixPath(file.path.lower()).name
+            # 根据文件名识别生态系统（如 pyproject.toml → Python）
             ecosystem = DEPENDENCY_ECOSYSTEMS.get(file_name, "unknown")
             key = f"dependency:{file.path}"
             nodes[key] = KnowledgeNode(
@@ -199,6 +300,12 @@ class KnowledgeGraphService:
         module_keys: dict[str, str],
         files: list[ClassifiedFile],
     ) -> list[str]:
+        """为测试文件创建 test_suite 和 test_file 节点。
+
+        同时创建两条边：
+          - tests_with:     连接仓库与测试套件。
+          - tests_module:   连接测试套件与被测模块（如果模块存在）。
+        """
         keys: list[str] = []
         test_files = [file for file in files if file.category.value == "tests"]
         by_directory = self._group_by_top_directory(test_files)
@@ -213,10 +320,12 @@ class KnowledgeGraphService:
                 metadata={"test_files": [file.path for file in grouped_files[:12]]},
             )
             edges.append(KnowledgeEdge(source=repo_key, target=key, relation="tests_with"))
+            # 如果该目录有对应的模块节点，建立测试→模块的关联
             if directory in module_keys:
                 edges.append(KnowledgeEdge(source=key, target=module_keys[directory], relation="tests_module"))
             keys.append(key)
 
+            # 为每个测试文件创建独立的 test_file 节点（最多 20 个）
             for file in grouped_files[:20]:
                 file_key = f"test_file:{file.path}"
                 nodes[file_key] = KnowledgeNode(
@@ -238,6 +347,7 @@ class KnowledgeGraphService:
         repo_key: str,
         snapshot: RepositorySnapshot,
     ) -> str | None:
+        """创建 README 文档节点（如果 README 存在）。"""
         if not snapshot.readme:
             return None
         key = "doc:readme"
@@ -252,6 +362,9 @@ class KnowledgeGraphService:
         edges.append(KnowledgeEdge(source=repo_key, target=key, relation="documents"))
         return key
 
+    # ── Chunk generators ───────────────────────────────────────────────
+    # 以下是各类文本分块的生成方法
+
     def _overview_chunks(
         self,
         snapshot: RepositorySnapshot,
@@ -260,6 +373,7 @@ class KnowledgeGraphService:
         test_keys: list[str],
         readme_key: str | None,
     ) -> list[KnowledgeChunk]:
+        """生成仓库总览分块（包含语言、目录数、模块数等高层信息）。"""
         node_keys = ["repo", *module_keys.values(), *dependency_keys, *test_keys]
         if readme_key:
             node_keys.append(readme_key)
@@ -288,6 +402,7 @@ class KnowledgeGraphService:
         nodes: dict[str, KnowledgeNode],
         directories: dict[str, list[ClassifiedFile]],
     ) -> list[KnowledgeChunk]:
+        """生成目录结构分块。"""
         lines = []
         node_keys = []
         for directory, files in sorted(directories.items()):
@@ -313,6 +428,7 @@ class KnowledgeGraphService:
         directories: dict[str, list[ClassifiedFile]],
         module_keys: dict[str, str],
     ) -> list[KnowledgeChunk]:
+        """生成模块映射分块。"""
         lines = []
         for directory, module_key in sorted(module_keys.items()):
             source_files = [file.path for file in directories[directory] if file.category.value == "source_code"]
@@ -329,6 +445,7 @@ class KnowledgeGraphService:
         ]
 
     def _dependency_chunks(self, nodes: dict[str, KnowledgeNode], dependency_keys: list[str]) -> list[KnowledgeChunk]:
+        """生成依赖关系分块。"""
         lines = []
         for key in dependency_keys:
             node = nodes[key]
@@ -350,11 +467,13 @@ class KnowledgeGraphService:
         nodes: dict[str, KnowledgeNode],
         test_keys: list[str],
     ) -> list[KnowledgeChunk]:
+        """生成测试相关分块（测试文件列表 + README 中的测试提示）。"""
         test_lines = []
         for key in test_keys:
             node = nodes[key]
             if node.type in {"test_suite", "test_file"}:
                 test_lines.append(f"- {node.path or node.name}: {node.summary}")
+        # 从 README 中提取测试相关的命令行提示
         readme_hints = self._readme_test_hints(snapshot.readme or "")
         content = "\n".join(
             [
@@ -375,6 +494,19 @@ class KnowledgeGraphService:
         ]
 
     def _source_content_chunks(self, snapshot: RepositorySnapshot) -> list[KnowledgeChunk]:
+        """生成源码内容分块（滑动窗口 + 重叠）。
+
+        策略：
+          - 对每个已索引的源码文件，使用滑动窗口分割为多个 chunk。
+          - chunk_size 和 overlap 由配置读取（默认 1024 / 128）。
+          - overlap 不超过 chunk_size 的一半，避免过度重叠。
+
+        Args:
+            snapshot: 仓库快照。
+
+        Returns:
+            源码内容分块列表。
+        """
         chunks: list[KnowledgeChunk] = []
         chunk_size = max(500, settings.rag_chunk_size)
         overlap = min(max(0, settings.rag_chunk_overlap), chunk_size // 2)
@@ -382,6 +514,7 @@ class KnowledgeGraphService:
             start = 0
             index = 0
             text = file.content
+            # 滑动窗口分割：每次前进 chunk_size - overlap
             while start < len(text):
                 end = min(len(text), start + chunk_size)
                 content = text[start:end].strip()
@@ -404,11 +537,16 @@ class KnowledgeGraphService:
                     )
                 if end >= len(text):
                     break
+                # 下一窗口：end - overlap（保证相邻窗口间有重叠上下文）
                 start = max(end - overlap, start + 1)
                 index += 1
         return chunks
 
+    # ── Utility methods ────────────────────────────────────────────────
+    # 以下是工具方法
+
     def _repository_summary(self, snapshot: RepositorySnapshot) -> str:
+        """生成仓库整体摘要文本。"""
         languages = ", ".join(snapshot.stats.languages) or snapshot.stats.primary_language or "unknown"
         return (
             f"{snapshot.identity.full_name} is a {languages} repository with "
@@ -417,6 +555,10 @@ class KnowledgeGraphService:
         )
 
     def _group_by_top_directory(self, files: list[ClassifiedFile]) -> dict[str, list[ClassifiedFile]]:
+        """将文件按顶层目录分组。
+
+        例如 ``src/main.py`` → ``"src"``，根目录文件 → ``"(root)"``。
+        """
         grouped: dict[str, list[ClassifiedFile]] = defaultdict(list)
         for file in files:
             directory = file.path.split("/", 1)[0] if "/" in file.path else "(root)"
@@ -424,6 +566,11 @@ class KnowledgeGraphService:
         return dict(grouped)
 
     def _readme_test_hints(self, readme: str) -> list[str]:
+        """从 README 中提取测试相关的命令提示。
+
+        匹配规则：行中包含 "test" 或已知的测试命令（pytest, jest 等）。
+        返回匹配行及前后 1-2 行的上下文。
+        """
         if not readme:
             return []
         hints: list[str] = []
@@ -437,6 +584,21 @@ class KnowledgeGraphService:
         return hints[:6]
 
     def _score_chunk(self, chunk: KnowledgeChunk, query_terms: set[str], focus: str) -> float:
+        """根据查询词和焦点对 chunk 进行相关性评分。
+
+        评分规则：
+          - 无查询词且无 focus：统一返回 1.0。
+          - 每个查询词命中：+1 分（路径类词匹配子串，普通词匹配完整单词/前缀）。
+          - focus 命中（在内容、source_type 或 metadata.focus 中）：+2 分。
+
+        Args:
+            chunk:       要评分的分块。
+            query_terms: 查询词集合。
+            focus:       焦点字符串（如 "modules"、"tests"）。
+
+        Returns:
+            相关性分数（浮点数）。
+        """
         haystack = f"{chunk.title} {chunk.content} {chunk.source_type} {chunk.metadata}".lower()
         haystack_terms = set(re.findall(r"[a-z0-9_]+", haystack))
         score = 0.0
@@ -455,6 +617,17 @@ class KnowledgeGraphService:
         return score
 
     def _terms(self, text: str) -> set[str]:
+        """将文本转换为标准化的搜索词集合。
+
+        包含中文关键词别名映射：
+          目录 → directory structure / 模块 → module / 依赖 → dependency 等。
+
+        Args:
+            text: 输入文本（可能包含中文）。
+
+        Returns:
+            标准化的搜索词集合（≥2 字符）。
+        """
         normalized = text.lower()
         aliases = {
             "目录": "directory structure",

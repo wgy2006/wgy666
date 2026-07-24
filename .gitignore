@@ -25,6 +25,10 @@ frontend/.env
 # OS
 .DS_Store
 Thumbs.db
+*:Zone.Identifier
+
+# Microsoft Office temporary files
+~$*.docx
 
 # claude
 CLAUDE.md
@@ -38,6 +42,10 @@ UIprototype/vision_doc/vision-github-qa.out
 UIprototype/vision_doc/docx_temp/
 backend/data/issuescope.db
 
+# Generated UML documentation
+docs/uml/
+
+
 # TechPrototype - LaTeX build artifacts
 TechPrototype/vision_doc/*.aux
 TechPrototype/vision_doc/*.log
@@ -46,3 +54,5 @@ TechPrototype/vision_doc/*.toc
 TechPrototype/vision_doc/*.pdf
 TechPrototype/vision_doc/docx_temp/
 TechPrototype/code/backend/.env
+
+
